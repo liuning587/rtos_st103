@@ -1,0 +1,7 @@
+  h
+  speed 4800
+  exec device = STM32F103RE
+  loadbin ./Debug/stm32_boot.bin 0x8000000
+  r
+  g
+  qc
