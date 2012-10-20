@@ -10,11 +10,12 @@
  *
  ******************************************************************************
  */
-#include <stdio.h>
+//#include <stdio.h>
 #include <types.h>
 #include <stm32f1lib.h>
 
-#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+
+void print(const int8 *str);
 
 typedef enum
 {
@@ -149,8 +150,9 @@ app_main(void)
 
     STM_EVAL_COMInit(COM2, &USART_InitStructure);
 #endif
+    print("in app_main!\r\n");
     /* Output a message on Hyperterminal using printf function */
-    printf("\n\rUSART Printf Example: retarget the C library printf function to the USART\n\r");
+    print("\n\rUSART Printf Example: retarget the C library printf function to the USART\n\r");
 
     while (1)
     {
@@ -158,12 +160,7 @@ app_main(void)
 }
 
 
-/**
-  * @brief  Retargets the C library printf function to the USART.
-  * @param  None
-  * @retval None
-  */
-PUTCHAR_PROTOTYPE
+uint8_t uart_send(uint8_t ch)
 {
   /* Place your implementation of fputc here */
   /* e.g. write a character to the USART */
@@ -174,4 +171,12 @@ PUTCHAR_PROTOTYPE
   {}
 
   return ch;
+}
+void
+print(const int8 *str)
+{
+    while('\0' != *str)
+    {
+        uart_send((const uint8)*str++);
+    }
 }
