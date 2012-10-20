@@ -8,10 +8,80 @@
 #include <types.h>
 
 
-#define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
-#define HSE_STARTUP_TIMEOUT   ((uint16_t)0x0500) /*!< Time out for HSE start up */
-#define HSI_VALUE    ((uint32_t)8000000) /*!< Value of the Internal oscillator in Hz*/
+//#define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
+//#define HSE_STARTUP_TIMEOUT   ((uint16_t)0x0500) /*!< Time out for HSE start up */
+//#define HSI_VALUE    ((uint32_t)8000000) /*!< Value of the Internal oscillator in Hz*/
 
+ /* Uncomment the line below according to the target STM32 device used in your
+    application
+   */
+
+ #if !defined (STM32F10X_LD) && !defined (STM32F10X_LD_VL) && !defined (STM32F10X_MD) && !defined (STM32F10X_MD_VL) && !defined (STM32F10X_HD) && !defined (STM32F10X_HD_VL) && !defined (STM32F10X_XL) && !defined (STM32F10X_CL)
+   /* #define STM32F10X_LD */     /*!< STM32F10X_LD: STM32 Low density devices */
+   /* #define STM32F10X_LD_VL */  /*!< STM32F10X_LD_VL: STM32 Low density Value Line devices */
+   /* #define STM32F10X_MD */     /*!< STM32F10X_MD: STM32 Medium density devices */
+   /* #define STM32F10X_MD_VL */  /*!< STM32F10X_MD_VL: STM32 Medium density Value Line devices */
+      #define STM32F10X_HD        /*!< STM32F10X_HD: STM32 High density devices */
+   /* #define STM32F10X_HD_VL */  /*!< STM32F10X_HD_VL: STM32 High density value line devices */
+   /* #define STM32F10X_XL */     /*!< STM32F10X_XL: STM32 XL-density devices */
+   /* #define STM32F10X_CL */     /*!< STM32F10X_CL: STM32 Connectivity line devices */
+ #endif
+ /*  Tip: To avoid modifying this file each time you need to switch between these
+         devices, you can define the device in your toolchain compiler preprocessor.
+
+  - Low-density devices are STM32F101xx, STM32F102xx and STM32F103xx microcontrollers
+    where the Flash memory density ranges between 16 and 32 Kbytes.
+  - Low-density value line devices are STM32F100xx microcontrollers where the Flash
+    memory density ranges between 16 and 32 Kbytes.
+  - Medium-density devices are STM32F101xx, STM32F102xx and STM32F103xx microcontrollers
+    where the Flash memory density ranges between 64 and 128 Kbytes.
+  - Medium-density value line devices are STM32F100xx microcontrollers where the
+    Flash memory density ranges between 64 and 128 Kbytes.
+  - High-density devices are STM32F101xx and STM32F103xx microcontrollers where
+    the Flash memory density ranges between 256 and 512 Kbytes.
+  - High-density value line devices are STM32F100xx microcontrollers where the
+    Flash memory density ranges between 256 and 512 Kbytes.
+  - XL-density devices are STM32F101xx and STM32F103xx microcontrollers where
+    the Flash memory density ranges between 512 and 1024 Kbytes.
+  - Connectivity line devices are STM32F105xx and STM32F107xx microcontrollers.
+   */
+
+ #if !defined (STM32F10X_LD) && !defined (STM32F10X_LD_VL) && !defined (STM32F10X_MD) && !defined (STM32F10X_MD_VL) && !defined (STM32F10X_HD) && !defined (STM32F10X_HD_VL) && !defined (STM32F10X_XL) && !defined (STM32F10X_CL)
+  #error "Please select first the target STM32F10x device used in your application (in stm32f10x.h file)"
+ #endif
+
+ #if !defined  USE_STDPERIPH_DRIVER
+ /**
+  * @brief Comment the line below if you will not use the peripherals drivers.
+    In this case, these drivers will not be included and the application code will
+    be based on direct access to peripherals registers
+    */
+   /*#define USE_STDPERIPH_DRIVER*/
+ #endif
+
+ /**
+  * @brief In the following line adjust the value of External High Speed oscillator (HSE)
+    used in your application
+
+    Tip: To avoid modifying this file each time you need to use different HSE, you
+         can define the HSE value in your toolchain compiler preprocessor.
+   */
+ #if !defined  HSE_VALUE
+  #ifdef STM32F10X_CL
+   #define HSE_VALUE    ((uint32_t)25000000) /*!< Value of the External oscillator in Hz */
+  #else
+   #define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
+  #endif /* STM32F10X_CL */
+ #endif /* HSE_VALUE */
+
+
+ /**
+  * @brief In the following line adjust the External High Speed oscillator (HSE) Startup
+    Timeout value
+    */
+ #define HSE_STARTUP_TIMEOUT   ((uint16_t)0x0500) /*!< Time out for HSE start up */
+
+ #define HSI_VALUE    ((uint32_t)8000000) /*!< Value of the Internal oscillator in Hz*/
 /**
  * @brief STM32F10x Standard Peripheral Library version number
    */
