@@ -1,0 +1,7 @@
+  h
+  speed 4800
+  exec device = STM32F103RE
+  loadbin ./Debug/rtos_st103.bin 0x8001000
+  r
+  g
+  qc
