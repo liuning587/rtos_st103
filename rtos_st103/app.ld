@@ -18,7 +18,9 @@ SECTIONS
         _text = .;
         KEEP(*(.isr_vector))
         *(.text*)
+       . = ALIGN(4);
         *(.rodata*)
+       . = ALIGN(4);
         __shell_cmd_start = .;
         KEEP(*(.shell_cmd)) 
         __shell_cmd_end = .;
