@@ -35,7 +35,7 @@ root_task(void *p_arg)
 #if (OS_TASK_STAT_EN > 0)
     OSStatInit();
 #endif
-    shellInit();
+    shell_init();
     usrAppInit();
     excInit();
 }

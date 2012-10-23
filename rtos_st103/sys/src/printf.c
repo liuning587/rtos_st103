@@ -1,17 +1,25 @@
-#if 1
-/**************************************************************************//*****
- * @file     printf.c
- * @brief    Implementation of several stdio.h methods, such as printf(), 
- *           sprintf() and so on. This reduces the memory footprint of the
- *           binary when using those methods, compared to the libc implementation.
- ********************************************************************************/
+/**
+ ******************************************************************************
+ * @file       printf.c
+ * @brief      Implementation of several stdio.h methods, such as printf(),
+ *             sprintf() and so on. This reduces the memory footprint of the
+ *             binary when using those methods, compared to the libc
+ *             implementation.
+ *
+ ******************************************************************************
+ */
 #include <stdio.h>
 #include <stdarg.h>
 #include <types.h>
 
-#define MAXBUF 80
-
+/**
+ * 移植部分
+ */
 extern void bsp_putchar(char_t c);
+#define PORT_PUTCHAR  bsp_putchar   /**< 字符输出函数 */
+#define MAXBUF  80                  /**< printf一次最多打印字符数 */
+
+
 static inline int
 isdigit(int ch)
 {
@@ -27,9 +35,6 @@ unsigned int skip_atou(const char **s)
   return i;
 }
 
-
-static const char * const g_pcHex = "0123456789abcdef";
-
 /**
  * @brief  Transmit a char, if you want to use printf(), 
  *         you need implement this function
@@ -44,7 +49,7 @@ void printchar(char c)
         printchar('\r');
     }
 
-    bsp_putchar((unsigned char)c);
+    PORT_PUTCHAR((unsigned char)c);
 }
 
 void printstring(const char *pcString,int len)
@@ -354,7 +359,6 @@ signed int puts(const char *pStr)
 {
     signed int num = 0;
     while (*pStr != 0) {
-
         printchar(*pStr++);
         num++;
     }
@@ -363,5 +367,4 @@ signed int puts(const char *pStr)
     return num;
 }
 
-/* --------------------------------- End Of File ------------------------------ */
-#endif
+/* --------------------------------- End Of File ----------------------------*/

@@ -1,11 +1,10 @@
 /**
  ******************************************************************************
  * @file       shell.c
- * @version    V1.1.4
- * @brief      API C source file of shell.c
- *             Created on: 2012-4-9
- *             Author: Administrator
- * @details    This file including all API functions's implement of dps.
+ * @version    V0.0.1
+ * @brief      shell模块.
+ * @details    This file including all API functions's implement of shell.
+ * @copy       Copyrigth(C)
  *
  ******************************************************************************
  */
@@ -14,12 +13,30 @@
 #include <string.h>
 #include <sched.h>
 
+/**
+ * 移植提供函数：1、字符串输出  2、读取一个字符
+ */
 extern int32_t bsp_getchar(void);
-extern void printchar(char c);  /* 今后要换为tty设备 */
+/*-----------------------------------------------------------------------------
+Section: Constant Definitions
+-----------------------------------------------------------------------------*/
+#define CFG_CBSIZE 50
+#define SHELL_GETCHAR       bsp_getchar     /**< 读取一个字符 */
+#define SHELL_PRINTF        printf          /**< 字符串输出 */
 
+/*-----------------------------------------------------------------------------
+Section: Global Variables
+-----------------------------------------------------------------------------*/
+extern cmd_tbl_t  __shell_cmd_start;
+extern cmd_tbl_t  __shell_cmd_end;
+
+/*-----------------------------------------------------------------------------
+Section: Local Variables
+-----------------------------------------------------------------------------*/
 static uint8_t console_buffer[CFG_CBSIZE]; /* console I/O buffer   */
 static const char_t erase_seq[] = "\b \b";
 static const char_t *prompt = "->";
+static cmd_tbl_t *pmatch_cmd = NULL;
 
 /*-----------------------------------------------------------------------------
  Section: static Function Prototypes
@@ -32,11 +49,20 @@ static int run_command(char_t *cmd);
 /*-----------------------------------------------------------------------------
  Section: Function Definitions
  ----------------------------------------------------------------------------*/
-
-/***************************************************************************
- * find command table entry for a command
+/**
+ ******************************************************************************
+ * @brief      find command table entry for a command
+ * @param[in]  const char_t *cmd
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
  */
-static cmd_tbl_t *find_cmd(const char_t *cmd)
+static cmd_tbl_t *
+find_cmd(const char_t *cmd)
 {
     cmd_tbl_t *cmdtp;
     cmd_tbl_t *cmdtp_temp = &__shell_cmd_start; /*Init value */
@@ -55,7 +81,9 @@ static cmd_tbl_t *find_cmd(const char_t *cmd)
         if (strncmp(cmd, (char *) cmdtp->name, len) == 0)
         {
             if (len == strlen(cmdtp->name))
+            {
                 return cmdtp; /* full match */
+            }
 
             cmdtp_temp = cmdtp; /* abbreviated command ? */
             n_found++;
@@ -70,9 +98,20 @@ static cmd_tbl_t *find_cmd(const char_t *cmd)
     return NULL; /* not found or ambiguous command */
 }
 
-static cmd_tbl_t *pmatch_cmd = NULL;
-
-static int32_t match_cmd(char_t *buf, int32_t len)
+/**
+ ******************************************************************************
+ * @brief      匹配命令
+ * @param[in]  char_t *buf
+ * @param[in]  int32_t len
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static int32_t
+match_cmd(char_t *buf, int32_t len)
 {
     cmd_tbl_t *pcmd = NULL;
     int32_t i = 0;
@@ -86,7 +125,8 @@ static int32_t match_cmd(char_t *buf, int32_t len)
         }
     }
 
-    (pmatch_cmd != NULL) ? (pcmd = pmatch_cmd + 1) : (pmatch_cmd = pcmd = &__shell_cmd_start);
+    (pmatch_cmd != NULL) ? (pcmd = pmatch_cmd + 1)
+            : (pmatch_cmd = pcmd = &__shell_cmd_start);
 
     do {
         if (pcmd >= &__shell_cmd_end)
@@ -114,7 +154,21 @@ static int32_t match_cmd(char_t *buf, int32_t len)
     return -2;
 }
 
-static bool_e readline(void)
+/**
+ ******************************************************************************
+ * @brief      读取一行命令
+ * @param[in]  None
+ * @param[out] None
+ * @retval     TRUE     : 成功
+ * @retval     FALSE    : 失败
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static bool_e
+readline(void)
 {
     uint8_t c;
     uint8_t *p = console_buffer;
@@ -123,49 +177,53 @@ static bool_e readline(void)
     int32_t ret;
 
     // 打印提示符
-    printf(prompt);
+    SHELL_PRINTF(prompt);
     //fflush(stdout);
     while (TRUE)
     {
         taskDelay(1);
         // 检测输入
         if ((c = bsp_getchar()) == 0)
+        {
             continue;
+        }
         // 处理输入字符
         switch (c)
         {
         case '\r': // 回车
         case '\n': // 换行，命令结束输入
             p[n] = '\0';
-             printf ("\r\n");
+             SHELL_PRINTF ("\r\n");
             pmatch_cmd = NULL;
             return TRUE;
 
         case 0x03: // Ctrl + C
             // 清空缓冲区
             console_buffer[0] = '\0';
-            printf("\r\n");
+            SHELL_PRINTF("\r\n");
             return FALSE;
 
         case 0x08: //退格键
             if (0 >= n)
+            {
                 continue;
+            }
             // 删除最后一个字符
             p[n] = '\0';
             //p--;
             n--;
             n_pos = n;
             pmatch_cmd = NULL;
-            printf(erase_seq);
+            SHELL_PRINTF(erase_seq);
             continue;
 
         case 0x09: // TAB
             ret = match_cmd((char_t *)console_buffer, n_pos);
             n = ret > 0 ? ret : n;
-            printf("\r");
-            printf(prompt);
-            printf("%s", console_buffer);
-            printf("\033[0K"); // Clear from cursor to end of line
+            SHELL_PRINTF("\r");
+            SHELL_PRINTF(prompt);
+            SHELL_PRINTF("%s", console_buffer);
+            SHELL_PRINTF("\033[0K"); // Clear from cursor to end of line
             continue;
 
         case 0x7F: // DEL
@@ -175,10 +233,10 @@ static bool_e readline(void)
             // Buffer full
             if (n >= CFG_CBSIZE - 2)
             {
-                printf("\a");//超出命令最大字节数响铃
+                SHELL_PRINTF("\a");//超出命令最大字节数响铃
                 continue;
             }
-            printchar(c);
+            SHELL_PRINTF("%c", c);
             // 保存到缓冲区
             p[n] = c;
             n++;
@@ -189,29 +247,35 @@ static bool_e readline(void)
     return TRUE;
 }
 
-/****************************************************************************
- * returns:
- *  1  - command executed, repeatable
- *  0  - command executed but not repeatable, interrupted commands are
- *       always considered not repeatable
- *  -1 - not executed (unrecognized, bootd recursion or too many args)
- *           (If cmd is NULL or "" or longer than CFG_CBSIZE-1 it is
- *           considered unrecognized)
+/**
+ ******************************************************************************
+ * @brief      解析命令行
+ * @param[in]  char_t *line     : 输入命令行
+ * @param[out] char_t *argv[]   : 输出命令行参数
  *
+ * @retval 1  - command executed, repeatable
+ * @retval 0  - command executed but not repeatable, interrupted commands are
+ *              always considered not repeatable
+ * @retval -1 - not executed (unrecognized, bootd recursion or too many args)
+ *              (If cmd is NULL or "" or longer than CFG_CBSIZE-1 it is
+ *              considered unrecognized)
+ * @note
  * WARNING:
  *
  * We must create a temporary copy of the command since the command we get
  * may be the result from getenv(), which returns a pointer directly to
  * the environment data, which may change magicly when the command we run
  * creates or modifies environment variables (like "bootp" does).
+ *
+ ******************************************************************************
  */
-static int parse_line(char_t *line, char_t *argv[])
+static int32_t
+parse_line(char_t *line, char_t *argv[])
 {
-    int nargs = 0;
+    int32_t nargs = 0;
 
     while (nargs < CFG_MAXARGS)
     {
-
         /* skip any white space */
         while ((*line == ' ') || (*line == '\t'))
         {
@@ -244,11 +308,24 @@ static int parse_line(char_t *line, char_t *argv[])
         *line++ = '\0'; /* terminate current arg     */
     }
 
-    printf("** Too many args (max. %d) **\n", CFG_MAXARGS);
+    SHELL_PRINTF("** Too many args (max. %d) **\n", CFG_MAXARGS);
     return (nargs);
 }
 
-static int32_t run_command(char_t *cmd)
+/**
+ ******************************************************************************
+ * @brief      执行命令
+ * @param[in]  char_t *cmd
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static int32_t
+run_command(char_t *cmd)
 {
     cmd_tbl_t *cmdtp;
     char_t cmdbuf[CFG_CBSIZE]; /* working copy of cmd      */
@@ -265,7 +342,7 @@ static int32_t run_command(char_t *cmd)
     len = strlen(cmd);
     if (len >= CFG_CBSIZE)
     {
-        printf("Command too long!\n\r");
+        SHELL_PRINTF("Command too long!\n\r");
         return -1;
     }
     memset(cmdbuf, 0, CFG_CBSIZE);
@@ -275,10 +352,8 @@ static int32_t run_command(char_t *cmd)
     /* Process separators and check for invalid
      * repeatable commands
      */
-
     while (*str)
     {
-
         /*
          * Find separator, or string end
          * Allow simple escape of ';' by writing "\;"
@@ -286,12 +361,16 @@ static int32_t run_command(char_t *cmd)
         for (inquotes = 0, sep = str; *sep; sep++)
         {
             if ((*sep == '\'') && (*(sep - 1) != '\\'))
+            {
                 inquotes = !inquotes;
+            }
 
             if (!inquotes && (*sep == ';') && /* separator        */
                     (sep != str) && /* past string start    */
                     (*(sep - 1) != '\\')) /* and NOT escaped  */
+            {
                 break;
+            }
         }
 
         /*
@@ -304,9 +383,10 @@ static int32_t run_command(char_t *cmd)
             *sep = '\0';
         }
         else
+        {
             str = sep; /* no more commands for next pass */
+        }
 
-        //printf("%s %s %s\r\n",console_buffer,argv[0],token);
         /* Extract arguments */
         if ((argc = parse_line(token, argv)) == 0)
         {
@@ -314,12 +394,10 @@ static int32_t run_command(char_t *cmd)
             continue;
         }
 
-        //printf("%s %s\r\n",console_buffer,argv[0]);
-
         /* Look up command in command table */
         if ((cmdtp = find_cmd((char*) argv[0])) == NULL)
         {
-            printf("Unknown command '%s' - try 'help'\r\n", argv[0]);
+            SHELL_PRINTF("Unknown command '%s' - try 'help'\r\n", argv[0]);
             rc = -1; /* give up after bad command */
             continue;
         }
@@ -327,7 +405,7 @@ static int32_t run_command(char_t *cmd)
         /* found - check max args */
         if (argc > cmdtp->maxargs)
         {
-            printf("Usage:\n%s\r\n", cmdtp->usage);
+            SHELL_PRINTF("Usage:\n%s\r\n", cmdtp->usage);
             rc = -1;
             continue;
         }
@@ -337,43 +415,74 @@ static int32_t run_command(char_t *cmd)
         {
             rc = -1;
         }
-
     }
 
     return rc;
 }
-/*SHELL CMD FOR HELP*/
-uint32_t help()
+
+/**
+ ******************************************************************************
+ * @brief      打印帮助信息help
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static uint32_t
+help(void)
 {
     uint8_t *usage;
     cmd_tbl_t *cmdtptemp;
-    printf("\n");
+
+    SHELL_PRINTF("\n");
     /* print short help (usage) */
     for (cmdtptemp = &__shell_cmd_start; cmdtptemp != &__shell_cmd_end;
             cmdtptemp++)
     {
         usage = (uint8_t *)cmdtptemp->name;
         if (usage == NULL)
+        {
             continue;
-        printf((char*) usage);
-        printf("\r\t\t\t");
+        }
+        SHELL_PRINTF((char*) usage);
+        SHELL_PRINTF("\r\t\t\t");
         usage = (uint8_t *)cmdtptemp->usage;
         /* allow user abort */
         if (usage == NULL)
+        {
             continue;
-        printf((char*) usage);
+        }
+        SHELL_PRINTF((char*) usage);
     }
     return 0;
 
 }
 /*SHELL CMD FOR SHELL*/
-uint32_t do_help(cmd_tbl_t * cmdtp, uint32_t argc, uint8_t *argv[])
+uint32_t do_help(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
     return help();
 }
 
-SHELL_CMD( help, CFG_MAXARGS, help, "Print this list\r\n");
-void shell_loop(void)
+SHELL_CMD(help, CFG_MAXARGS, do_help, "Print this list\r\n");
+
+/**
+ ******************************************************************************
+ * @brief      shell任务执行体
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+void
+shell_loop(void)
 {
     while (1)
     {
@@ -388,7 +497,21 @@ void shell_loop(void)
 #define OS_TASK_SHELL_STK_SIZE          1024            /* SHELL线程的堆栈大小*/
 uint32_t shellstack[OS_TASK_SHELL_STK_SIZE/4];          /*SHELL线程的堆栈*/
 
-void shellInit()
+/**
+ ******************************************************************************
+ * @brief      shell模块初始化
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+void
+shell_init(void)
 {
-    taskSpawn("SHELL", OS_TASK_SHELL_PRIO, shellstack, OS_TASK_SHELL_STK_SIZE, (OSFUNCPTR)shell_loop, 0);
+    taskSpawn("SHELL", OS_TASK_SHELL_PRIO, shellstack,
+            OS_TASK_SHELL_STK_SIZE, (OSFUNCPTR)shell_loop, 0);
 }
