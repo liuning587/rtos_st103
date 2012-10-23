@@ -1,17 +1,26 @@
-
+/**
+ ******************************************************************************
+ * @file       exArchLib.c
+ * @version    V0.0.1
+ * @brief      CM3异常处理.
+ * @details    This file including all API functions's implement of exc.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 /*-----------------------------------------------------------------------------
  Section: Includes
  ----------------------------------------------------------------------------*/
-#include "types.h"
-#include "string.h"
-#include "stdio.h"
-#include "ucos_ii.h"
-#include "exc.h"
-#include <sched.h>
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
-/*------------------------------------------------------------------------------
-Section: Macro Definitions
-------------------------------------------------------------------------------*/
+#include <sched.h>
+#include <ucos_ii.h>
+#include <types.h>
+#include <exc.h>
+/*-----------------------------------------------------------------------------
+ Section: Macro Definitions
+ ----------------------------------------------------------------------------*/
 #define HARD_FALUT_FSR  0xE000ED2C
 #define MEM_FALUT_FSR   0xE000ED28
 #define BUS_FALUT_FSR   0xE000ED29
@@ -20,27 +29,42 @@ Section: Macro Definitions
 #define MEM_FALUT_FAR   0xE000ED34
 #define BUS_FALUT_FAR   0xE000ED38
 
-/*------------------------------------------------------------------------------
-Section: Private Type Definitions
-------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------
+ Section: Private Type Definitions
+ ----------------------------------------------------------------------------*/
+typedef struct
+{
+    uint32_t  vecAddr;      /**< exception vector */
+    char_t *  excMsg;       /**< exception message */
+} exc_msg_tbl_t;
 
 
-
-
-/*------------------------------------------------------------------------------
-Section: Global Variables
-------------------------------------------------------------------------------*/
-EXC_INFO    excInfo;
+typedef struct
+{
+    uint32_t    valid;      /**< indicators that following fields are valid */
+    uint32_t    vecAddr;    /**< exception vector address */
+    uint32_t    fsr;        /**< fault status register*/
+    uint32_t    faddr;      /**< fault address register */
+    uint32_t    sp;
+    uint32_t    taskid;
+    uint32_t    regs[16];
+    time_t      time;       /**< occur time */
+} exc_info_t;
+/*-----------------------------------------------------------------------------
+ Section: Global Variables
+ ----------------------------------------------------------------------------*/
+exc_info_t    excInfo;
 FUNCPTR     _func_excPanicHook;  /* 异常处理钩子函数，在异常中断中执行 */
 FUNCPTR     _func_excTaskHook;   /* 异常处理钩子函数，在异常任务中执行，可用于在文件中保存现场信息 */
 
 extern FUNCPTR     _func_excJobAdd;
 extern void bsp_reboot(void);
 
-/*------------------------------------------------------------------------------
-Section: Private Variables
-------------------------------------------------------------------------------*/
-static const EXC_MSG_TBL excMsgTbl [] = {
+/*-----------------------------------------------------------------------------
+ Section: Private Variables
+ ----------------------------------------------------------------------------*/
+static void excInfoShow(exc_info_t info);
+static const exc_msg_tbl_t excMsgTbl [] = {
     {1, "RESET"},
     {2, "NMI"},
     {3, "HARD FAULT"},
@@ -50,22 +74,43 @@ static const EXC_MSG_TBL excMsgTbl [] = {
     {0, NULL}
     };
 
-/*------------------------------------------------------------------------------
-Section: Private Function Prototypes
-------------------------------------------------------------------------------*/
-
-static void excInfoSave() {
+/*-----------------------------------------------------------------------------
+ Section: Private Function Prototypes
+ ----------------------------------------------------------------------------*/
+/**
+ ******************************************************************************
+ * @brief      异常信息保存
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void
+excInfoSave(void)
+{
     uint32_t i;
 
-    if 	(excInfo.valid != 1) return;
+    if 	(excInfo.valid != 1)
+    {
+        return;
+    }
     for ( i = 0; excMsgTbl[i].vecAddr != excInfo.vecAddr; i++)
 	{
         if (excMsgTbl[i].excMsg == NULL)
+        {
             return;
+        }
     }
     if (excMsgTbl[i].excMsg != NULL)
+    {
         printf ("\r\n%s\r\n", excMsgTbl[i].excMsg);
-    else  {
+    }
+    else
+    {
         printf ("\r\nTrap to uninitialized vector no %d.\r\n",excInfo.vecAddr);
 		return;
     }
@@ -74,16 +119,34 @@ static void excInfoSave() {
     excInfoShow(excInfo);
 
     if (_func_excTaskHook != NULL)         /* panic hook? */
+    {
         (*_func_excTaskHook) (&excInfo);
+    }
 
 	excInfo.valid = 0;
 	excInfo.faddr = 0;
 }
 
- void excInfoShow(EXC_INFO info) {
+/**
+ ******************************************************************************
+ * @brief      打印异常信息
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void
+excInfoShow(exc_info_t info)
+{
 	printf("exception fault state regs value: 0x%ux \r\n",info.fsr);
 	if (info.faddr != 0)
-		printf("exception occur address: 0x%08x \r\n",info.faddr);
+	{
+	    printf("exception occur address: 0x%08x \r\n",info.faddr);
+	}
 
 	printf("exception occur regs : \r\n");
 	printf("    r0  =%08x    r1  =%08x    r2  =%08x    r3  =%08x \r\n",
@@ -105,10 +168,20 @@ static void excInfoSave() {
 #endif
 }
 
-/*------------------------------------------------------------------------------
-Section: Public Function
-------------------------------------------------------------------------------*/
-void excExcHandle(void* pRegs, uint32_t excNo)
+/**
+ ******************************************************************************
+ * @brief      excExcHandle - 异常处理
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+void
+excExcHandle(void* pRegs, uint32_t excNo)
 {
     excInfo.valid = 1;
     excInfo.vecAddr = excNo;
@@ -134,10 +207,13 @@ void excExcHandle(void* pRegs, uint32_t excNo)
 
     excInfo.time = time(NULL);
 
-    if((OSRunning == OS_FALSE) || (OSIntNesting > 0 )){
+    if((OSRunning == OS_FALSE) || (OSIntNesting > 0 ))
+    {
 
         if (_func_excPanicHook != NULL)         /* panic hook? */
-        (*_func_excPanicHook) (&excInfo);
+        {
+            (*_func_excPanicHook) (&excInfo);
+        }
         bsp_reboot();
         return;
     }
@@ -150,8 +226,4 @@ void excExcHandle(void* pRegs, uint32_t excNo)
     //bsp_reboot();
     return;
 }
-
-
-
-/*------------------------------End of excArchLib.c---------------------------------*/
-
+/*-------------------------End of excArchLib.c-------------------------------*/

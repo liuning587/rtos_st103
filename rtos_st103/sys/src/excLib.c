@@ -1,3 +1,13 @@
+/**
+ ******************************************************************************
+ * @file       excLib.c
+ * @version    V0.0.1
+ * @brief      CM3异常处理.
+ * @details    This file including all API functions's implement of exc.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 /*-----------------------------------------------------------------------------
  Section: Includes
  ----------------------------------------------------------------------------*/
@@ -14,7 +24,11 @@
 /*-----------------------------------------------------------------------------
  Section: Private Type Definitions
  ----------------------------------------------------------------------------*/
-/* NONE */
+typedef struct
+{
+    VOIDFUNCPTR func;               /**< pointer to function to invoke */
+    int32_t     arg [EXC_MAX_ARGS]; /**< args for function */
+} exc_msg_t;
 
 /*-----------------------------------------------------------------------------
  Section: Global Variables
@@ -24,25 +38,30 @@ FUNCPTR     _func_excJobAdd;
 /*-----------------------------------------------------------------------------
  Section: Private Variables
  ----------------------------------------------------------------------------*/
-
 static uint8_t exc_pri = 1;                      /*异常中断任务的优先级*/
 static uint32_t excTaskStack[480 / 4];           /*异常中断任务的堆栈*/
 static uint32_t excstack_size = 480;
 
-
 static SEM_ID excSemId;
-typedef struct				/* EXC_MSG */
-    {
-    VOIDFUNCPTR	func;			/* pointer to function to invoke */
-    int32_t     arg [EXC_MAX_ARGS];	/* args for function */
-    } EXC_MSG;
+static exc_msg_t msg;
 
-static EXC_MSG msg;
-
-/*------------------------------------------------------------------------------
-Section: Private Function Prototypes
-------------------------------------------------------------------------------*/
-void excTask(void)
+/*-----------------------------------------------------------------------------
+  Section: Private Function Prototypes
+ ----------------------------------------------------------------------------*/
+/**
+ ******************************************************************************
+ * @brief      异常处理任务执行体
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+void
+excTask(void)
 
 {
     while (1)
@@ -54,20 +73,23 @@ void excTask(void)
 	}
  }
 
-/*------------------------------------------------------------------------------
-Section: Public Function
-------------------------------------------------------------------------------*/
-/*******************************************************************************
-*
-* excJobAdd - request a task-level function call from interrupt level
-*
-* This routine allows interrupt level code to request a function call
-* to be made by excTask at task-level.
-*
-* NOMANUAL
-*/
-
-status_t excJobAdd (VOIDFUNCPTR func, int arg1,int arg2,int arg3,int arg4,int arg5,int arg6)
+/**
+ ******************************************************************************
+ * @brief   excJobAdd - request a task-level function call from interrupt level
+ *          发生异常是调用
+ * @note
+ *  This routine allows interrupt level code to request a function call
+ *  to be made by excTask at task-level.
+ ******************************************************************************
+ */
+status_t
+excJobAdd (VOIDFUNCPTR func,
+        int32_t arg1,
+        int32_t arg2,
+        int32_t arg3,
+        int32_t arg4,
+        int32_t arg5,
+        int32_t arg6)
 {
     msg.func = func;
     msg.arg[0] = arg1;
@@ -81,7 +103,21 @@ status_t excJobAdd (VOIDFUNCPTR func, int arg1,int arg2,int arg3,int arg4,int ar
     return OK;
 }
 
-status_t excInit(void)
+/**
+ ******************************************************************************
+ * @brief      异常任务初始化
+ * @param[in]  None
+ * @param[out] None
+ * @retval     OK   : 任务创建成功
+ * @retval     ERROR: 任务创建失败
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+status_t
+excInit(void)
 
 {
 	_func_excJobAdd = excJobAdd;
@@ -92,4 +128,4 @@ status_t excInit(void)
     return (excTaskId == exc_pri ? OK :ERROR );
 }
 
-/*------------------------------End of excLib.c---------------------------------*/
+/*-----------------------------End of excLib.c-------------------------------*/
