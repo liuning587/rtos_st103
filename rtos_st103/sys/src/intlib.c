@@ -1,145 +1,71 @@
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+/**
+ ******************************************************************************
+ * @file       intlib.c
+ * @version    V0.0.1
+ * @brief      CM3中断处理.
+ * @details    This file including all API functions's implement of intlib.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
+/*-----------------------------------------------------------------------------
+ Section: Includes
+ ----------------------------------------------------------------------------*/
 #include <intlib.h>
 #include <ucos_ii.h>
 
-/*------------------------------------------------------------------------------
-Section: Macro Definitions
-------------------------------------------------------------------------------*/
-//#define ROUTINE(n) n < intcount ? routine##n : dummy
+/*-----------------------------------------------------------------------------
+ Section: Macro Definitions
+ ----------------------------------------------------------------------------*/
 #define ROUTINE(n) routine##n 
 
-/*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
-/* None */
+/*-----------------------------------------------------------------------------
+ Section: Globals
+ ----------------------------------------------------------------------------*/
 extern unsigned long _sidata;
 extern unsigned long _data;
 extern unsigned long _edata;
 extern unsigned long _bss;
 extern unsigned long _ebss;
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
-
-/*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
-
-/*FOR INTLIB*/
-#define INT_COUNT 103
-INT_RTN intRtnTbl[INT_COUNT - 15];                     /* 中断实现函数入口表 */
-uint32_t intcount = INT_COUNT;                           /* 支持的中断个数*/
-
-/*------------------------------------------------------------------------------
-Section: Local Variable
-------------------------------------------------------------------------------*/
-
-
-
-extern void  EXC_ENTER_HARD_FAULT(void);                                
+extern void  EXC_ENTER_HARD_FAULT(void);
 extern void  EXC_ENTER_MEM_FAULT(void);
 extern void  EXC_ENTER_BUS_FAULT(void);
 extern void  EXC_ENTER_USAGE_FAULT(void);
 extern int32_t main(void);
-extern uint32_t intcount;
-/*******************************************************************************
-*
-* resetRoutine - 复位处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-//static void resetRoutine(void);
 
-/*******************************************************************************
-*
-* NMIRoutine - NMI中断处理
-*
-* INPUTS: *   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
+/*-----------------------------------------------------------------------------
+ Section: Constant Definitions
+ ----------------------------------------------------------------------------*/
+/* None */
+
+/*-----------------------------------------------------------------------------
+ Section: Type Definitions
+ ----------------------------------------------------------------------------*/
+typedef struct IntRtn
+{
+    VOIDFUNCPTR routine;    /**< interrupt handler */
+    int32_t     parameter;  /**< parameter of the handler */
+} INT_RTN;
+
+/** 中断向量表项，存放栈顶地址及ISR地址 */
+typedef union
+{
+    VOIDFUNCPTR routine;     /**< 中断处理函数地址 */
+    void *msp;               /**< 栈顶地址         */
+} INTVECT_ITEM;
+/*---------------------------------------------------------------------------*/
+/* FOR INTLIB */
+static INT_RTN intRtnTbl[INT_COUNT - 15];              /* 中断实现函数入口表 */
+
+/*-----------------------------------------------------------------------------
+ Section: Local Variable
+ ----------------------------------------------------------------------------*/
 static void NMIRoutine(void);
-
-#if 0
-/*******************************************************************************
-*
-* faultRoutine -  硬件错误中断处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void faultRoutine(void);
-
-/*******************************************************************************
-*
-* memFaultRoutine -  存储器管理错误处理
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void memFaultRoutine(void);
-
-/*******************************************************************************
-*
-* busFaultRoutine -  总线错误处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void busFaultRoutine(void);
-
-/*******************************************************************************
-*
-* usageFaultRoutine -  用法错误处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void usageFaultRoutine(void);
-
-
-#endif
-/*******************************************************************************
-*
-* intHandler -   根据传入的中断号找到并调用相应的Routine
-*
-* INPUTS: 
-*   int_num : 中断号
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
+static void dummy(void);
 static void intHandler (uint32_t int_num);
 
 /* 其它中断 */
-void	routine16       (void)	{ intHandler(	16	); }
+void	routine16   (void)	{ intHandler(	16	); }
 void	routine17	(void)	{ intHandler(	17	); }
 void	routine18	(void)	{ intHandler(	18	); }
 void	routine19	(void)	{ intHandler(	19	); }
@@ -226,55 +152,40 @@ void	routine97	(void)	{ intHandler(	97	); }
 void	routine98	(void)	{ intHandler(	98	); }
 void	routine99	(void)	{ intHandler(	99	); }
 void	routine100	(void)	{ intHandler(	100	); }
-void	routine101(void)	{ intHandler(	101	); }
-void	routine102(void)	{ intHandler(	102	); }
+void	routine101  (void)	{ intHandler(	101	); }
+void	routine102  (void)	{ intHandler(	102	); }
 void	routine103	(void)	{ intHandler(	103	); }
 
-/*******************************************************************************
-*
-* dummy -  空闲中断 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void dummy(void);
 
-//#define STACK_SIZE 1024
-//static unsigned long cstack[STACK_SIZE];
 
- extern unsigned long cstack_top; /* Defined by the linker */
+extern unsigned long cstack_top; /* Defined by the linker */
 
 /* 中断向量表 */
 __attribute__((section(".isr_vector")))
 const INTVECT_ITEM __vector_table[] = {
-    (void (*)(void))(&cstack_top),                                              /* 栈顶指针           */
-    resetRoutine,                                             /* 复位中断           */
-    NMIRoutine,                                               /* NMI中断            */
-   // faultRoutine,                                           /* 硬件错误中断       */ 
-   // memFaultRoutine,                                        /* 存储器管理错误中断 */
-   // busFaultRoutine,                                        /* 总线错误中断       */
-   // usageFaultRoutine,                                      /* 用法错误中断       */
-#if 1
-    EXC_ENTER_HARD_FAULT, 
-    EXC_ENTER_MEM_FAULT,    
+    (void (*)(void))(&cstack_top),      /* 栈顶指针           */
+    resetRoutine,                       /* 复位中断           */
+    NMIRoutine,                         /* NMI中断            */
+#if 0
+   // faultRoutine,                         /* 硬件错误中断       */
+   // memFaultRoutine,                      /* 存储器管理错误中断 */
+   // busFaultRoutine,                      /* 总线错误中断       */
+   // usageFaultRoutine,                    /* 用法错误中断       */
+#else
+    EXC_ENTER_HARD_FAULT,
+    EXC_ENTER_MEM_FAULT,
     EXC_ENTER_BUS_FAULT,
     EXC_ENTER_USAGE_FAULT,
 #endif
-
-    
-    dummy,                                                  /* 空闲中断...       */
+    dummy,                                  /* 空闲中断...       */
     dummy,
     dummy,
     dummy,
-    dummy,    
-    dummy,                                                  
     dummy,
-    OS_CPU_PendSVHandler,                                   /* μCOS             */
-    OS_CPU_SysTickHandler,                                  /* μCOS             */
+    dummy,
+    dummy,
+    OS_CPU_PendSVHandler,                   /* μCOS             */
+    OS_CPU_SysTickHandler,                  /* μCOS             */
     ROUTINE(16 ),
     ROUTINE(17 ),
     ROUTINE(18 ),
@@ -319,7 +230,7 @@ const INTVECT_ITEM __vector_table[] = {
     ROUTINE(57 ),
     ROUTINE(58 ),
     ROUTINE(59 ),
-    
+
     ROUTINE(60 ),
     ROUTINE(61 ),
     ROUTINE(62 ),
@@ -364,205 +275,25 @@ const INTVECT_ITEM __vector_table[] = {
     ROUTINE(101),
     ROUTINE(102),
     ROUTINE(103)
+};
 
-}; 
-
-/*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
-/*******************************************************************************
-*
-* intConnect - 关联ROUTINE
-*
-* INPUTS: 
-*   int_num   : 中断号(16 ~ intcount)
-*   routine   : 中断服务
-*   parameter : 中断参数
-*
-* RETURNS:
-*   status_t: 成功-OK, 失败-ERROR
-*
-*******************************************************************************/
-extern status_t intConnect(uint32_t int_num, VOIDFUNCPTR routine, uint32_t parameter) {
-    if ((int_num < 16) || (int_num > intcount))
-        return ERROR;
-
-    intRtnTbl[int_num - 16].routine   = routine;
-    intRtnTbl[int_num - 16].parameter = parameter;
-    
-    return OK;
-}
-
-/*******************************************************************************
-*
-* intDisconnect - 注销中断ROUTINE
-*
-* INPUTS: 
-*   int_num: 中断号(16 ~ intcount)
-*
-* RETURNS:
-*   status_t: 成功-OK, 失败-ERROR
-*
-*******************************************************************************/
-extern status_t intDisconnect(uint32_t int_num) {
-    if ((int_num < 16) || (int_num > intcount))
-        return ERROR;     
-
-    intRtnTbl[int_num - 16].routine = dummy;
-    intRtnTbl[int_num - 16].parameter = NULL;
-    
-    return OK;
-}
-
-/*******************************************************************************
-*
-* intPrioSet - 设置中断优先级
-*
-* INPUTS: 
-*   int_num   : 中断号(16 ~ intcount)
-*   prio : 中断优先级
-*
-* RETURNS:
-*   status_t: 成功-OK, 失败-ERROR
-*
-*******************************************************************************/
-extern status_t intPrioSet(uint32_t int_num, uint8_t prio) {
-    if ((int_num < 16) || (int_num > intcount))
-        return ERROR;         
-
-    CPU_IntSrcPrioSet(int_num, prio);
-    
-    return OK;
-}
-
-/*******************************************************************************
-*
-* intEnable - 使能指定的中断
-*
-* INPUTS: 
-*   int_num   : 中断号(16 ~ intcount)  
-*
-* RETURNS:
-*   status_t: 成功-OK, 失败-ERROR
-*
-*******************************************************************************/
-extern status_t intEnable(uint32_t int_num) {
-    if ((int_num < 16) || (int_num > intcount))
-        return ERROR;         
-
-    CPU_IntSrcEn(int_num);
-    
-    return OK;
-}
-
-/*******************************************************************************
-*
-* intDisable - 禁用指定的中断
-*
-* INPUTS: 
-*   int_num   : 中断号(16 ~ intcount - 1)  
-*
-* RETURNS:
-*   status_t: 成功-OK, 失败-ERROR
-*
-*******************************************************************************/
-extern status_t intDisable(uint32_t int_num) {
-    if ((int_num < 16) || (int_num > intcount - 1))
-        return ERROR;         
-
-    CPU_IntSrcDis(int_num);
-    
-    return OK;
-}
-
-/*******************************************************************************
-*
-* intLock - 关中断
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-extern void intLock(void) {
-     __asm(
-           "CPSID   I\n"
-           "CPSID   I\n"
-          );
-}
-
-/*******************************************************************************
-*
-* intUnlock - 开中断
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-extern void intUnlock(void) {
-     __asm(
-           "CPSIE   I\n"
-           "BX      LR\n"
-          );
-}
-
-/*******************************************************************************
-*
-* dummy -  空闲中断入口 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void dummy(void) {
-    return;
-}
-
-/*******************************************************************************
-*
-* intHandler -   根据传入的中断号找到并调用相应的ISR
-*
-* INPUTS: 
-*   id : 中断号
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void intHandler(uint32_t int_num)
-{
-    INT_RTN int_rtn = intRtnTbl[int_num - 16];
-
-    OSIntEnter();
-
-    if (NULL != int_rtn.parameter)
-        int_rtn.routine(int_rtn.parameter);
-    else 
-        int_rtn.routine();
-
-    OSIntExit(); 
-}
-
-/*******************************************************************************
-*
-* resetRoutine - 复位中断入口 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-void resetRoutine(void)
+/*-----------------------------------------------------------------------------
+ Section: Function Prototypes
+ ----------------------------------------------------------------------------*/
+/**
+ ******************************************************************************
+ * @brief      resetRoutine - 复位中断入口
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+void
+resetRoutine(void)
 {
     unsigned long *pulSrc, *pulDest;
 
@@ -595,112 +326,278 @@ void resetRoutine(void)
     main();
 }
 
-/*******************************************************************************
-*
-* NMIRoutine - NMI中断入口 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void NMIRoutine(void) {
-    while (TRUE) {
+/**
+ ******************************************************************************
+ * @brief      dummy -  空闲中断入口
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void
+dummy(void)
+{
+    return;
+}
+
+/**
+ ******************************************************************************
+ * @brief      NMIRoutine - NMI中断入口
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void
+NMIRoutine(void)
+{
+    while (TRUE)
+    {
         ;
     }
 }
 
-#if 0
-/*******************************************************************************
-*
-* faultRoutine -  硬件错误处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void faultRoutine(void) {
-    while (TRUE) {
+/**
+ ******************************************************************************
+ * @brief      intHandler -   根据传入的中断号找到并调用相应的ISR
+ * @param[in]  id : 中断号
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void
+intHandler(uint32_t int_num)
+{
+    INT_RTN int_rtn = intRtnTbl[int_num - 16];
+
+    OSIntEnter();
+
+    if ((uint32_t)NULL != int_rtn.parameter)
+    {
+        int_rtn.routine(int_rtn.parameter);
     }
+    else
+    {
+        int_rtn.routine();
+    }
+
+    OSIntExit();
 }
 
-/*******************************************************************************
-*
-* memFaultRoutine -  存储器管理错误处理
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void memFaultRoutine(void) {
-    while (TRUE) {
+/**
+ ******************************************************************************
+ * @brief      intConnect - 关联ROUTINE
+ * @param[in]  int_num   : 中断号(16 ~ INT_COUNT)
+ * @param[in]  routine   : 中断服务
+ * @param[in]  parameter : 中断参数
+ *
+ * @retval     成功-OK, 失败-ERROR
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t
+intConnect(uint32_t int_num,
+         VOIDFUNCPTR routine,
+         uint32_t parameter)
+{
+    if ((int_num < 16) || (int_num > INT_COUNT))
+    {
+        return ERROR;
     }
-}
-  
-/*******************************************************************************
-*
-* busFaultRoutine -  总线错误处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void busFaultRoutine(void) {
-    while (TRUE) {
-    }
+
+    intRtnTbl[int_num - 16].routine   = routine;
+    intRtnTbl[int_num - 16].parameter = parameter;
+
+    return OK;
 }
 
-/*******************************************************************************
-*
-* usageFaultRoutine -  用法错误处理 
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-static void usageFaultRoutine(void) {
-    while (TRUE) {
+/**
+ ******************************************************************************
+ * @brief      intDisconnect - 注销中断ROUTINE
+ * @param[in]  int_num: 中断号(16 ~ INT_COUNT)
+ * @param[out] None
+ *
+ * @retval     成功-OK, 失败-ERROR
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t
+intDisconnect(uint32_t int_num)
+{
+    if ((int_num < 16) || (int_num > INT_COUNT))
+    {
+        return ERROR;
     }
+
+    intRtnTbl[int_num - 16].routine = dummy;
+    intRtnTbl[int_num - 16].parameter = (uint32_t)NULL;
+
+    return OK;
 }
 
-#endif
+/**
+ ******************************************************************************
+ * @brief      intPrioSet - 设置中断优先级
+ * @param[in]  int_num   : 中断号(16 ~ INT_COUNT)
+ * @param[in]  prio      : 中断优先级
+ *
+ * @retval     成功-OK, 失败-ERROR
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t
+intPrioSet(uint32_t int_num, uint8_t prio)
+{
+    if ((int_num < 16) || (int_num > INT_COUNT))
+    {
+        return ERROR;
+    }
 
-/*******************************************************************************
-*
-* intLibInit - 中断初始化
-*
-* INPUTS: 
-*   void
-*
-* RETURNS:
-*   void
-*
-*******************************************************************************/
-extern void intLibInit(void) {
-    uint32_t  int_num;
-    
+    CPU_IntSrcPrioSet(int_num, prio);
+
+    return OK;
+}
+
+/**
+ ******************************************************************************
+ * @brief      intEnable - 使能指定的中断
+ * @param[in]  int_num   : 中断号(16 ~ INT_COUNT)
+ * @param[out] None
+ *
+ * @retval     成功-OK, 失败-ERROR
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t
+intEnable(uint32_t int_num)
+{
+    if ((int_num < 16) || (int_num > INT_COUNT))
+    {
+        return ERROR;
+    }
+
+    CPU_IntSrcEn(int_num);
+
+    return OK;
+}
+
+ /**
+ ******************************************************************************
+ * @brief      intDisable - 禁用指定的中断
+ * @param[in]  int_num   : 中断号(16 ~ INT_COUNT - 1)
+ * @param[out] None
+ *
+ * @retval     成功-OK, 失败-ERROR
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t
+intDisable(uint32_t int_num)
+{
+    if ((int_num < 16) || (int_num > INT_COUNT - 1))
+    {
+        return ERROR;
+    }
+
+    CPU_IntSrcDis(int_num);
+
+    return OK;
+}
+
+/**
+ ******************************************************************************
+ * @brief      intLock - 关中断
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern void
+intLock(void)
+{
+    __asm(
+            "CPSID   I\n"
+            "CPSID   I\n"
+         );
+}
+
+/**
+ ******************************************************************************
+ * @brief      intUnlock - 开中断
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern void
+intUnlock(void) {
+    __asm(
+            "CPSIE   I\n"
+            "BX      LR\n"
+         );
+}
+
+/**
+ ******************************************************************************
+ * @brief      intLibInit - 中断初始化
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern void
+intLibInit(void)
+{
+    uint32_t int_num;
+
     // 初始化中断表
-    for (int_num = 16; int_num < intcount; int_num++) {
-        intConnect(int_num, dummy, NULL);
+    for (int_num = 16; int_num < INT_COUNT; int_num++)
+    {
+        intConnect(int_num, dummy, (uint32_t)NULL);
     }
-    
+
     // 使能BusFault、memFault、usgFault
-    CPU_REG_NVIC_SHCSR |= CPU_REG_NVIC_SHCSR_BUSFAULTENA | CPU_REG_NVIC_SHCSR_MEMFAULTENA | CPU_REG_NVIC_SHCSR_USGFAULTENA; 
+    CPU_REG_NVIC_SHCSR |= CPU_REG_NVIC_SHCSR_BUSFAULTENA
+            | CPU_REG_NVIC_SHCSR_MEMFAULTENA | CPU_REG_NVIC_SHCSR_USGFAULTENA;
 }
 
-
-/*------------------------------End of intLib.c-------------------------------*/
+/*------------------------------End of intLib.c------------------------------*/
