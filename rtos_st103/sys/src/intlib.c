@@ -12,6 +12,7 @@
  Section: Includes
  ----------------------------------------------------------------------------*/
 #include <intlib.h>
+#include <cpu_os.h>
 #include <ucos_ii.h>
 
 /*-----------------------------------------------------------------------------
@@ -112,7 +113,7 @@ void	routine59	(void)	{ intHandler(	59	); }
 
 
 extern unsigned long cstack_top; /* Defined by the linker */
-
+void resetRoutine(void);
 /* 中断向量表 */
 __attribute__((section(".isr_vector")))
 const INTVECT_ITEM __vector_table[] = {

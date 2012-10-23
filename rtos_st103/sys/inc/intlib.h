@@ -13,33 +13,32 @@
 
 /*-----------------------------------------------------------------------------
  Section: Includes
- ---------------------------------------------------------------------------*/
+ ----------------------------------------------------------------------------*/
 #include <types.h>
-#include <cpu_os.h>
-/*------------------------------------------------------------------------------
-Section: Macro Definitions
-------------------------------------------------------------------------------*/
+
+/*-----------------------------------------------------------------------------
+ Section: Macro Definitions
+ ----------------------------------------------------------------------------*/
 #define INT_COUNT   59u    /**< 支持的中断个数 */
 
-/*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------
+ Section: Globals
+ ----------------------------------------------------------------------------*/
 /* None */
 
-/*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
-
-extern status_t intConnect(uint32_t int_num, VOIDFUNCPTR routine, uint32_t parameter);
-extern status_t intDisconnect(uint32_t int_num);
-extern status_t intPrioSet(uint32_t int_num, uint8_t prio);
+/*-----------------------------------------------------------------------------
+ Section: Function Prototypes
+ ----------------------------------------------------------------------------*/
+extern void intLibInit(void);
 extern void intLock(void);
 extern void intUnlock(void);
 extern status_t intEnable(uint32_t int_num);
 extern status_t intDisable(uint32_t int_num);
-extern void intLibInit(void);
+extern status_t intConnect(uint32_t int_num, VOIDFUNCPTR routine, uint32_t parameter);
+extern status_t intDisconnect(uint32_t int_num);
+extern status_t intPrioSet(uint32_t int_num, uint8_t prio);
 
-void resetRoutine(void);
+//void resetRoutine(void);
 /*-----------------------------------------------------------------------------
  Section: Globals
  ----------------------------------------------------------------------------*/
