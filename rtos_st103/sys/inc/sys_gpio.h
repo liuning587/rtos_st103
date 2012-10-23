@@ -1,3 +1,13 @@
+/**
+ ******************************************************************************
+ * @file       sys_gpio.c
+ * @version    V0.0.1
+ * @brief      gpioÄ£¿é.
+ * @details    This file including all API functions's implement of gpio.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 #ifndef __SYS_GPIO_H__
 #define __SYS_GPIO_H__
 #include <types.h>
@@ -38,6 +48,7 @@ extern int32_t sys_gpio_cfg(int32_t f_iIoNo, uint32_t f_imode);
 extern int32_t sys_gpio_read(int32_t f_iIoNo);
 
 extern status_t sys_gpio_write(int32_t f_iIoNo, int32_t f_IoState);
+
 extern void sys_gpio_bspInstall(
         FUNCPTR bsp_gpio_cfg,
         FUNCPTR bsp_gpio_read,
@@ -47,3 +58,6 @@ extern void sys_gpio_bspInstall(
 
 
 #endif /* __GPIO_H__ */
+
+/*------------------------------End of gpio.h -------------------------------*/
+

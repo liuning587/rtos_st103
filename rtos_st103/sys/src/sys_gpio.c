@@ -1,8 +1,18 @@
+/**
+ ******************************************************************************
+ * @file       sys_gpio.c
+ * @version    V0.0.1
+ * @brief      gpio模块.
+ * @details    This file including all API functions's implement of gpio.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 /*-----------------------------------------------------------------------------
  Section: Includes
  ----------------------------------------------------------------------------*/
-#include <sys_gpio.h>
 #include <sched.h>
+#include <sys_gpio.h>
 /*-----------------------------------------------------------------------------
  Section: Type Definitions
  ----------------------------------------------------------------------------*/
@@ -36,72 +46,80 @@ static FUNCPTR __bsp_gpio_write = NULL;
 /*-----------------------------------------------------------------------------
  Section: Function Definitions
  ----------------------------------------------------------------------------*/
-/******************************************************************************
-*
-* sys_gpio_read - 配置IO输入输出模式
-*
-* INPUTS:
-*  int32_t f_iIoNo : IO编号
-*
-* RETURNS:
-*  int: 返回的当前IO状态，1或者0；－1表示当前数据无效。d
-*
-******************************************************************************/
-extern int32_t sys_gpio_cfg(int32_t f_iIoNo, uint32_t f_imode)
+/**
+ ******************************************************************************
+ * @brief      sys_gpio_read - 配置IO输入输出模式
+ * @param[in]  int32_t iono  : IO编号
+ * @param[in]  uint32_t mode : 模式
+ * @retval     OK    配置成功
+ * @retval     ERROR 配置失败
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern int32_t
+sys_gpio_cfg(int32_t iono, uint32_t mode)
 {
-    if (IO_NO_SUPPORT == f_iIoNo) return ERROR;;
-    if (NULL != __bsp_gpio_cfg) return __bsp_gpio_cfg(f_iIoNo, f_imode);
+    if (IO_NO_SUPPORT == iono) return ERROR;;
+    if (NULL != __bsp_gpio_cfg) return __bsp_gpio_cfg(iono, mode);
     return ERROR;
 
 }
 
-/******************************************************************************
-*
-* sys_gpio_read - 读取指定IO的当前状态
-*
-* INPUTS:
-*  int32_t f_iIoNo : IO编号
-*
-* RETURNS:
-*  int: 返回的当前IO状态，1或者0；－1表示当前数据无效。
-*
-******************************************************************************/
-extern int32_t sys_gpio_read(int32_t f_iIoNo)
+/**
+ ******************************************************************************
+ * @brief      sys_gpio_read - 读取指定IO的当前状态
+ * @param[in]  int32_t iono  : IO编号
+ * @param[out] None
+ * @retval     int: 返回的当前IO状态，1或者0；－1表示当前数据无效。
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern int32_t sys_gpio_read(int32_t iono)
 {
-    if (IO_NO_SUPPORT == f_iIoNo) return ERROR;
-    if (NULL != __bsp_gpio_read) return __bsp_gpio_read(f_iIoNo);
+    if (IO_NO_SUPPORT == iono) return ERROR;
+    if (NULL != __bsp_gpio_read) return __bsp_gpio_read(iono);
     return ERROR;
 }
 
-/******************************************************************************
-*
-* sys_gpio_write - 设置指定IO的当前状态
-*
-* INPUTS:
-*   int32_t f_iIoNo:   IO编号
-*   int32_t f_IoState:    需要设置的IO状态
-* RETURNS:
-*  status_t: 指示是否设置成功
-*
-******************************************************************************/
-extern status_t sys_gpio_write(int32_t f_iIoNo,int32_t f_IoState)
+/**
+ ******************************************************************************
+ * @brief      sys_gpio_write - 设置指定IO的当前状态
+ * @param[in]  int32_t iono     : IO编号
+ * @param[in]  int32_t iostate  : 状态
+ * @retval     OK    设置成功
+ * @retval     ERROR 设置失败
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+extern status_t sys_gpio_write(int32_t iono,int32_t state)
 {
-    if (IO_NO_SUPPORT == f_iIoNo) return ERROR;
-    if (NULL != __bsp_gpio_write) return __bsp_gpio_write(f_iIoNo, f_IoState);
+    if (IO_NO_SUPPORT == iono) return ERROR;
+    if (NULL != __bsp_gpio_write) return __bsp_gpio_write(iono, state);
     return ERROR;
 }
 
-/******************************************************************************
-*
-* sys_gpio_bspInstall - initialize the bsp .
-*
-* INPUTS:
-*   void.
-*
-* RETURNS:
-*   status_t: On success, returns OK. A 0 is returned on error.
-*
-******************************************************************************/
+/**
+ ******************************************************************************
+ * @brief      sys_gpio_bspInstall - initialize the bsp
+ * @param[in]  FUNCPTR bsp_gpio_cfg
+ * @param[in]  FUNCPTR bsp_gpio_read
+ * @param[in]  FUNCPTR bsp_gpio_write
+ * @retval     status_t: On success, returns OK. A 0 is returned on error.
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
 extern void sys_gpio_bspInstall(
         FUNCPTR bsp_gpio_cfg,
         FUNCPTR bsp_gpio_read,
@@ -112,5 +130,4 @@ extern void sys_gpio_bspInstall(
     __bsp_gpio_write = bsp_gpio_write;
 }
 
-
-/*******************************End of gpio.c ********************************/
+/*------------------------------End of gpio.c -------------------------------*/
