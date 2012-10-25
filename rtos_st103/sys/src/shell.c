@@ -491,12 +491,6 @@ shell_loop(void)
     }
 }
 
-#include <sched.h>
-/*FOR SHELL*/
-#define OS_TASK_SHELL_PRIO              6               /* SHELL线程的优先级*/
-#define OS_TASK_SHELL_STK_SIZE          1024            /* SHELL线程的堆栈大小*/
-uint32_t shellstack[OS_TASK_SHELL_STK_SIZE/4];          /*SHELL线程的堆栈*/
-
 /**
  ******************************************************************************
  * @brief      shell模块初始化
@@ -512,6 +506,10 @@ uint32_t shellstack[OS_TASK_SHELL_STK_SIZE/4];          /*SHELL线程的堆栈*/
 void
 shell_init(void)
 {
-    taskSpawn("SHELL", OS_TASK_SHELL_PRIO, shellstack,
-            OS_TASK_SHELL_STK_SIZE, (OSFUNCPTR)shell_loop, 0);
+#include <sched.h>
+#include <rtos_config.h>
+    static uint32_t shellstack[SYS_TASK_STACK_SIZE/4];
+
+    taskSpawn("SHELL", SYS_SHELL_PRI, shellstack,
+            SYS_TASK_STACK_SIZE, (OSFUNCPTR)shell_loop, 0);
 }

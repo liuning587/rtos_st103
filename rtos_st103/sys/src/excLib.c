@@ -14,6 +14,7 @@
 #include <types.h>
 #include <sched.h>
 #include <exc.h>
+#include <rtos_config.h>
 
 /*-----------------------------------------------------------------------------
  Section: Macro Definitions
@@ -38,9 +39,7 @@ FUNCPTR     _func_excJobAdd;
 /*-----------------------------------------------------------------------------
  Section: Private Variables
  ----------------------------------------------------------------------------*/
-static uint8_t exc_pri = 1;                      /*异常中断任务的优先级*/
-static uint32_t excTaskStack[480 / 4];           /*异常中断任务的堆栈*/
-static uint32_t excstack_size = 480;
+static uint32_t excTaskStack[SYS_EXC_STACK_SIZE / 4];   /*异常中断任务的堆栈*/
 
 static SEM_ID excSemId;
 static exc_msg_t msg;
@@ -123,9 +122,10 @@ excInit(void)
 	_func_excJobAdd = excJobAdd;
 
     excSemId = semBCreate(0);
-    int32_t excTaskId =  taskSpawn("tExcTask", exc_pri, excTaskStack, excstack_size, (OSFUNCPTR)excTask, 0);
+    int32_t excTaskId =  taskSpawn("tExcTask", SYS_EXC_PRI, excTaskStack,
+            SYS_EXC_STACK_SIZE, (OSFUNCPTR)excTask, 0);
 
-    return (excTaskId == exc_pri ? OK :ERROR );
+    return (excTaskId == SYS_EXC_PRI ? OK :ERROR );
 }
 
 /*-----------------------------End of excLib.c-------------------------------*/
