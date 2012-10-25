@@ -26,55 +26,52 @@
  ----------------------------------------------------------------------------*/
 /* custom define */
 #ifndef FLASH_CHIP_SIZE
-#define FLASH_CHIP_SIZE (0x800000l)    /**< flash尺寸8M */
+#define FLASH_CHIP_SIZE         (0x800000l)         /**< flash尺寸8M */
 #endif
 
-#define FLASH_CHIP_NUM  (1u)           /**< flash数量 */
-#define FLASH_ERASE_BLOCK_SIZE 0x10000L
-#define UNIT_SIZE       0x10000
-#define UNIT_SIZE_BITS      16
-#define MAX_UNIT_COUNT       ( (FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>UNIT_SIZE_BITS)
+#define FLASH_CHIP_NUM          (1u)                /**< flash数量 */
+#define FLASH_ERASE_BLOCK_SIZE  0x10000L            /**< 擦除基本单位大小64k */
+#define UNIT_SIZE               0x10000
+#define UNIT_SIZE_BITS          16
+#define MAX_UNIT_COUNT          ((FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>UNIT_SIZE_BITS)
 
-#define BOOT_IMAGE_LEN    0x260000  /* 预留给升级程序、字库、备份等使用 */
-#define PERCENT_USE      98
-#define NO_OF_SPARE_UNITS  1
-//#define VM_ADDRESS_LIMIT 0x10000   /* 64K 内存直接访问寻址 */
-#define VM_ADDRESS_LIMIT 0
+#define BOOT_IMAGE_LEN          0                   /**< 预留给使用 */
+#define PERCENT_USE             98                  /**< 最大使用百分比 */
+#define NO_OF_SPARE_UNITS       1
+//#define VM_ADDRESS_LIMIT      0x10000   /* 64K 内存直接访问寻址 */
+#define VM_ADDRESS_LIMIT        0
 
 /* Implementation constants  */
-#define SECTOR_SIZE_BITS    9  /* 512 bytes */
-#define SECTOR_SIZE        (1 << SECTOR_SIZE_BITS)
-#define SECTOR_OFFSET_MASK (SECTOR_SIZE - 1)
+#define SECTOR_SIZE_BITS        9                   /**< 512 bytes */
+#define SECTOR_SIZE             (1 << SECTOR_SIZE_BITS)
+#define SECTOR_OFFSET_MASK      (SECTOR_SIZE - 1)
 
-#define PAGE_SIZE_BITS (SECTOR_SIZE_BITS + (SECTOR_SIZE_BITS - 2))
-#define PAGE_SIZE (1L << PAGE_SIZE_BITS)
-#define MAX_PAGE_COUNT ((FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>PAGE_SIZE_BITS)
+#define PAGE_SIZE_BITS          (SECTOR_SIZE_BITS + (SECTOR_SIZE_BITS - 2))
+#define PAGE_SIZE               (1L << PAGE_SIZE_BITS)
+#define MAX_PAGE_COUNT          ((FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>PAGE_SIZE_BITS)
 
-
-
-#define UNASSIGNED_SECTOR 0xffff
-#define UNASSIGNED_ADDRESS 0xffffffffl
-#define DELETED_ADDRESS 0
-#define    DELETED_SECTOR    0
-#define UNASSIGNED_UNIT_NO 0xffff
-#define MARKED_FOR_ERASE 0x7fff
+#define UNASSIGNED_SECTOR       0xffff
+#define UNASSIGNED_ADDRESS      0xffffffffl
+#define DELETED_ADDRESS         0
+#define    DELETED_SECTOR       0
+#define UNASSIGNED_UNIT_NO      0xffff
+#define MARKED_FOR_ERASE        0x7fff
 
 
 /* Structure of data on a unit */
+#define FREE_SECTOR             0xffffffffl
+#define GARBAGE_SECTOR          0
+#define ALLOCATED_SECTOR        0xfffffffel
+#define FORMAT_SECTOR           0x30
+#define DATA_SECTOR             0x40
+#define REPLACEMENT_PAGE        0x60
+#define BAD_SECTOR              0x70
+#define FREE_UNIT              -0x400    /* Indicates a transfer unit */
 
-#define FREE_SECTOR    0xffffffffl
-#define GARBAGE_SECTOR    0
-#define ALLOCATED_SECTOR 0xfffffffel
-#define    FORMAT_SECTOR    0x30
-#define DATA_SECTOR    0x40
-#define    REPLACEMENT_PAGE 0x60
-#define BAD_SECTOR    0x70
-#define FREE_UNIT    -0x400    /* Indicates a transfer unit */
-
-#define ADDRESSES_PER_SECTOR (SECTOR_SIZE / sizeof(uint32_t))
+#define ADDRESSES_PER_SECTOR    (SECTOR_SIZE / sizeof(uint32_t))
 
 #define cannotWriteOver(newContents, oldContents)        \
-        ((newContents) & ~(oldContents))
+                                ((newContents) & ~(oldContents))
 
 
 #define HEAP_SIZE                        \
@@ -82,29 +79,29 @@
         +   MAX_UNIT_COUNT * (sizeof(Unit) + sizeof(UnitPtr))
 
 
-#define dummyUnit ((const UnitHeader *) 0)  /* for offset calculations */
-#define logicalUnitNoOffset ((char *) &dummyUnit->logicalUnitNo -    \
-                 (char *) dummyUnit)
-#define eraseCountOffset ((char *) &dummyUnit->eraseCount -    \
-                 (char *) dummyUnit)
+#define dummyUnit               ((const UnitHeader *) 0)  /**< for offset calculations */
+#define logicalUnitNoOffset     ((char *) &dummyUnit->logicalUnitNo -    \
+                                     (char *) dummyUnit)
+#define eraseCountOffset        ((char *) &dummyUnit->eraseCount -    \
+                                     (char *) dummyUnit)
 
-#define buffer (*vol.volBuffer)
-/* Virtual map cache (shares memory with buffer) */
-#define mapCache    ((uint32_t *) buffer.data)
-
-
-/* Unit header buffer (shares memory with buffer) */
-#define uh        ((UnitHeader *) buffer.data)
-
-/* Transfer sector buffer (shares memory with buffer) */
-#define sectorCopy     ((uint32_t *) buffer.data)
-
-#define MapBuf ((uint32_t *)vol.mapBuffer.data)
-
-#define vol (*pVol)
+#define buffer                  (*vol.volBuffer)
+/** Virtual map cache (shares memory with buffer) */
+#define mapCache                ((uint32_t *) buffer.data)
 
 
-#define DEBUG_PRINT logmsg
+/** Unit header buffer (shares memory with buffer) */
+#define uh                      ((UnitHeader *) buffer.data)
+
+/** Transfer sector buffer (shares memory with buffer) */
+#define sectorCopy              ((uint32_t *) buffer.data)
+
+#define MapBuf                  ((uint32_t *)vol.mapBuffer.data)
+
+#define vol                     (*pVol)
+
+
+#define DEBUG_PRINT             printf
 #undef DEBUG_PRINT
 
 /*-----------------------------------------------------------------------------
@@ -112,103 +109,102 @@
  ----------------------------------------------------------------------------*/
 
 typedef int32_t     FLBoolean;
-typedef uint16_t    SectorNo;        /* MAX Sector count is 0xffff */
-typedef int32_t     LogicalAddress;    /* Byte address of media in logical unit no. order. */
-typedef int32_t     VirtualAddress;    /* Byte address of media as specified
-                       by Virtual Map. */
-typedef SectorNo    LogicalSectorNo;    /* A logical sector no. is given
-                       by dividing its logical address by
-                       the sector size */
-typedef SectorNo    VirtualSectorNo;    /* A virtual sector no. is such that
-                       the first page is no. 0, the 2nd
-                       is 1 etc.
-                       The virtual sector no. is given
-                       by dividing its virtual address by
-                       the sector size and adding the
-                       number of pages (result always
-                       positive). */
+typedef uint16_t    SectorNo;           /**< MAX Sector count is 0xffff */
+typedef int32_t     LogicalAddress;     /**< Byte address of media in logical unit no. order. */
+typedef int32_t     VirtualAddress;     /**< Byte address of media as specified
+                                             by Virtual Map. */
+typedef SectorNo    LogicalSectorNo;    /**< A logical sector no. is given
+                                             by dividing its logical address by
+                                             the sector size */
+typedef SectorNo    VirtualSectorNo;    /**< A virtual sector no. is such that
+                                             the first page is no. 0, the 2nd
+                                             is 1 etc.
+                                             The virtual sector no. is given
+                                             by dividing its virtual address by
+                                             the sector size and adding the
+                                             number of pages (result always
+                                             positive). */
 typedef uint16_t      UnitNo;
 
 
 typedef struct {
-  uint8_t   data[SECTOR_SIZE];        /**< sector buffer */
-  SectorNo    sectorNo;                /**< current sector in buffer */
-  void        *owner;                    /**< owner of buffer */
-  FLBoolean    dirty;                    /**< sector in buffer was changed */
-  FLBoolean    checkPoint;                /**< sector in buffer must be flushed */
+    uint8_t       data[SECTOR_SIZE];      /**< sector buffer */
+    SectorNo      sectorNo;               /**< current sector in buffer */
+    void *        owner;                  /**< owner of buffer */
+    FLBoolean     dirty;                  /**< sector in buffer was changed */
+    FLBoolean     checkPoint;             /**< sector in buffer must be flushed */
 } FLBuffer;
 
 typedef struct tUintHeader{
-  char_t    formatPattern[15];
-  uint8_t    noOfTransferUnits;        /**< no. of transfer units */
-  uint32_t    wearLevelingInfo;
-  uint16_t  logicalUnitNo;
-  uint8_t   log2SectorSize;
-  uint8_t   log2UnitSize;
-  uint16_t  firstPhysicalEUN;        /**< units reserved for boot image */
-  uint16_t  noOfUnits;                /**< no. of formatted units */
-  uint32_t  virtualMediumSize;        /**< virtual size of volume */
-  uint32_t  directAddressingMemory;    /**< directly addressable memory */
-  uint16_t  noOfPages;                /**< no. of virtual pages */
-  uint8_t   flags;
-  uint32_t  BAMoffset;
-  uint32_t  eraseCount;
-  uint8_t   reserved[12];
-
+    char_t        formatPattern[15];
+    uint8_t       noOfTransferUnits;      /**< no. of transfer units */
+    uint32_t      wearLevelingInfo;
+    uint16_t      logicalUnitNo;
+    uint8_t       log2SectorSize;
+    uint8_t       log2UnitSize;
+    uint16_t      firstPhysicalEUN;       /**< units reserved for boot image */
+    uint16_t      noOfUnits;              /**< no. of formatted units */
+    uint32_t      virtualMediumSize;      /**< virtual size of volume */
+    uint32_t      directAddressingMemory; /**< directly addressable memory */
+    uint16_t      noOfPages;              /**< no. of virtual pages */
+    uint8_t       flags;
+    uint32_t      BAMoffset;
+    uint32_t      eraseCount;
+    uint8_t       reserved[12];
 } UnitHeader;
 
 typedef struct {
-  uint8_t       data[SECTOR_SIZE + sizeof(UnitHeader)];    /* sector buffer */
-  SectorNo      mappedSectorNo;
-  void*         mappedSector;
-  uint32_t      mappedSectorAddress;
-  FLBoolean     remapped;       /* set to TRUE whenever the mapbuf is moved */
+    uint8_t       data[SECTOR_SIZE + sizeof(UnitHeader)]; /**< sector buffer */
+    SectorNo      mappedSectorNo;
+    void *        mappedSector;
+    uint32_t      mappedSectorAddress;
+    FLBoolean     remapped;               /**< set to TRUE whenever the mapbuf is moved */
 } FLMapBuf;
 
 typedef struct {
-  int16_t       noOfFreeSectors;
-  int16_t       noOfGarbageSectors;
+    int16_t       noOfFreeSectors;
+    int16_t       noOfGarbageSectors;
 } Unit;
 
 typedef Unit *UnitPtr;
 
 typedef struct tTLrec {
-  FLBoolean        badFormat;               /* true if FTL format is bad */
+    FLBoolean        badFormat;               /**< true if FTL format is bad */
 
-  VirtualSectorNo   totalFreeSectors;       /* Free sectors on volume */
-  SectorNo          virtualSectors;         /* size of virtual volume */
-  uint32_t          unitSizeBits;           /* log2 of unit size */
-  uint32_t          erasableBlockSizeBits;  /* log2 of erasable block size */
-  UnitNo            noOfUnits;
-  UnitNo            noOfTransferUnits;
-  UnitNo            firstPhysicalEUN;
-  int32_t           noOfPages;
-  VirtualSectorNo   directAddressingSectors;/* no. of directly addressable sectors */
-  VirtualAddress    directAddressingMemory; /* end of directly addressable memory */
-  uint32_t          unitOffsetMask;         /* = 1 << unitSizeBits - 1 */
-  uint32_t          bamOffset;
-  uint32_t          sectorsPerUnit;
-  uint32_t          unitHeaderSectors;      /* sectors used by unit header */
+    VirtualSectorNo   totalFreeSectors;       /**< Free sectors on volume */
+    SectorNo          virtualSectors;         /**< size of virtual volume */
+    uint32_t          unitSizeBits;           /**< log2 of unit size */
+    uint32_t          erasableBlockSizeBits;  /**< log2 of erasable block size */
+    UnitNo            noOfUnits;
+    UnitNo            noOfTransferUnits;
+    UnitNo            firstPhysicalEUN;
+    int32_t           noOfPages;
+    VirtualSectorNo   directAddressingSectors;/**< no. of directly addressable sectors */
+    VirtualAddress    directAddressingMemory; /**< end of directly addressable memory */
+    uint32_t          unitOffsetMask;         /**< = 1 << unitSizeBits - 1 */
+    uint32_t          bamOffset;
+    uint32_t          sectorsPerUnit;
+    uint32_t          unitHeaderSectors;      /**< sectors used by unit header */
 
-  Unit *            physicalUnits;          /* unit table by physical no. */
-  Unit **           logicalUnits;           /* unit table by logical no. */
-  Unit *            transferUnit;           /* The active transfer unit */
-  LogicalSectorNo * pageTable;              /* page translation table */
-                                            /* directly addressable sectors */
-  LogicalSectorNo   replacementPageAddress;
-  VirtualSectorNo   replacementPageNo;
+    Unit *            physicalUnits;          /**< unit table by physical no. */
+    Unit **           logicalUnits;           /**< unit table by logical no. */
+    Unit *            transferUnit;           /**< The active transfer unit */
+    LogicalSectorNo * pageTable;              /**< page translation table */
+                                              /**< directly addressable sectors */
+    LogicalSectorNo   replacementPageAddress;
+    VirtualSectorNo   replacementPageNo;
 
 
-  unsigned long     currWearLevelingInfo;
-  unsigned long     maxEraseCount;
+    unsigned long     currWearLevelingInfo;
+    unsigned long     maxEraseCount;
 
-  FLBuffer *        volBuffer;              /* Define a sector buffer */
+    FLBuffer *        volBuffer;              /**< Define a sector buffer */
 
-  FLMapBuf          mapBuffer;
+    FLMapBuf          mapBuffer;
 
-  FLFlash*          flash;
+    FLFlash*          flash;
 
-  char_t            heap[HEAP_SIZE];
+    char_t            heap[HEAP_SIZE];
 
 } Flare;
 
@@ -331,7 +327,19 @@ mapLogical(Flare vol, LogicalSectorNo address)
 /* Returns:                                                             */
 /*    Offset of BAM entry in unit                    */
 /*----------------------------------------------------------------------*/
-
+/**
+ ******************************************************************************
+ * @brief
+ * @param[in]  vol          : Pointer identifying drive
+ * @param[in]  sectorNo     : BAM entry no
+ *
+ * @retval     Offset of BAM entry in unit
+ *
+ * @details Returns unit offset of given BAM entry
+ *
+ * @note
+ ******************************************************************************
+ */
 static int allocEntryOffset(Flare vol, int sectorNo)
 {
   return (int) (vol.bamOffset + sizeof(VirtualAddress) * sectorNo);
@@ -1707,7 +1715,7 @@ FLStatus mountFTL(FLFlash *flash)
            &unitHeader, sizeof(UnitHeader));
     if (verifyFormat(&unitHeader)) {
       if (unitHeader.flags || unitHeader.log2SectorSize != SECTOR_SIZE_BITS)
-        {logmsg("1 \n\t");
+        {printf("1 \n\t");
             return flBadFormat;
         }
       break;
@@ -1738,7 +1746,7 @@ FLStatus mountFTL(FLFlash *flash)
        allocEntryOffset(&vol,vol.unitHeaderSectors) > SECTOR_SIZE ||
       (int)(vol.virtualSectors >> (PAGE_SIZE_BITS - SECTOR_SIZE_BITS)) > vol.noOfPages ||
       (int)(vol.virtualSectors >> (vol.unitSizeBits - SECTOR_SIZE_BITS)) > (vol.noOfUnits - vol.firstPhysicalEUN))
-            {logmsg("2 \n\t");
+            {printf("2 \n\t");
             return flBadFormat;
         }
 
@@ -2057,20 +2065,20 @@ status_t ftlInit()
 void ftlShow(void)
 {
     Flare vol = &s_flare;
-    logmsg ("FTL Version 1.0 :\r\n");
-    logmsg ("    Flash physical size      : 0x%x \r\n",vol.flash->chipSize*FLASH_CHIP_NUM);
-    logmsg ("    Flash virtual  size      : 0x%x \r\n",vol.virtualSectors<<SECTOR_SIZE_BITS);
-    logmsg ("    Flash unit number        : %d   \r\n",vol.noOfUnits);
-    logmsg ("    Flash page number        : %d   \r\n",vol.noOfPages);
-    logmsg ("    Flash virtual sectors num: %d   \r\n",vol.virtualSectors);
-    logmsg ("    Flash free sectors num   : %d   \r\n",vol.totalFreeSectors);
-    logmsg ("    Flash transfer unit num  : %d   \r\n",vol.noOfTransferUnits);
-    logmsg ("    Flash cur wear levering  : %d   \r\n",vol.currWearLevelingInfo);
-    logmsg ("    Flash max erase count    : %d   \r\n",vol.maxEraseCount);
-    logmsg (" -----------------------------------\r\n");
-    logmsg ("    Flash chipSize           : 0x%x \r\n",vol.flash->chipSize);
-    logmsg ("    Flash noOfChips          : %d   \r\n",vol.flash->noOfChips);
-    logmsg ("    Flash erasableBlockSize  : 0x%x \r\n",vol.flash->erasableBlockSize);
+    printf ("FTL Version 1.0 :\r\n");
+    printf ("    Flash physical size      : 0x%x \r\n",vol.flash->chipSize*FLASH_CHIP_NUM);
+    printf ("    Flash virtual  size      : 0x%x \r\n",vol.virtualSectors<<SECTOR_SIZE_BITS);
+    printf ("    Flash unit number        : %d   \r\n",vol.noOfUnits);
+    printf ("    Flash page number        : %d   \r\n",vol.noOfPages);
+    printf ("    Flash virtual sectors num: %d   \r\n",vol.virtualSectors);
+    printf ("    Flash free sectors num   : %d   \r\n",vol.totalFreeSectors);
+    printf ("    Flash transfer unit num  : %d   \r\n",vol.noOfTransferUnits);
+    printf ("    Flash cur wear levering  : %d   \r\n",vol.currWearLevelingInfo);
+    printf ("    Flash max erase count    : %d   \r\n",vol.maxEraseCount);
+    printf (" -----------------------------------\r\n");
+    printf ("    Flash chipSize           : 0x%x \r\n",vol.flash->chipSize);
+    printf ("    Flash noOfChips          : %d   \r\n",vol.flash->noOfChips);
+    printf ("    Flash erasableBlockSize  : 0x%x \r\n",vol.flash->erasableBlockSize);
 
 
 
@@ -2079,7 +2087,7 @@ unsigned long
 ftlget_maxEraseCount(void)
 {
     Flare vol = &s_flare;
-    /*logmsg ("    Flash max erase count    : %d   \r\n",vol.maxEraseCount);*/
+    /*printf ("    Flash max erase count    : %d   \r\n",vol.maxEraseCount);*/
     return (vol.maxEraseCount);
 }
 
