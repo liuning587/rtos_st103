@@ -1,7 +1,18 @@
+/**
+ ******************************************************************************
+ * @file       syscmd.c
+ * @version    V0.0.1
+ * @brief      系统指令模块.
+ * @details    This file including all API functions's implement of syscmd.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 /*-----------------------------------------------------------------------------
 Section: Includes
 -----------------------------------------------------------------------------*/
 #include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ucos_ii.h>
 #include <maths.h>
@@ -278,42 +289,33 @@ SHELL_CMD(
 
 );
 
-//extern void stats_display(void);
-/*SHELL CMD FOR NET*/
-uint32_t do_lwip(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
-{
-    //stats_display();
-    return 0;
-}
-
-SHELL_CMD(
-    lwip,   CFG_MAXARGS,        do_lwip,
-    "lwip \r\t\t\t\t Display lwip stats!\r\n"
-);
-
-//extern void reboot();
-/*SHELL CMD FOR NET*/
 
 
-
+#endif
 
 
 uint32_t do_iow(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
-       uint32_t io;
-       uint32_t value;
+       uint32_t io = 0;
+       uint32_t value = 0;
        // 参数数量=2
        if ((argc != 3 )) {
            printf("Usage:\r\n");
            printf("%s\r\n", cmdtp->usage);
            return 1;
        }
-       if (0 == sscanf((char_t *)argv[1], "%i", &io)) {
+
+       io = atoi((const char *)argv[1]);
+       if (0 == io)
+       {
            printf ("Usage:\r\n");
            printf ("%s\r\n", cmdtp->usage);
            return 1;
        }
-       if (0 == sscanf((char_t *)argv[2], "%i", &value)) {
+
+       value = atoi((const char *)argv[2]);
+       if (0 == value)
+       {
            printf ("Usage:\r\n");
            printf ("%s\r\n", cmdtp->usage);
            return 1;
@@ -330,7 +332,7 @@ SHELL_CMD(
 
 uint32_t do_ior(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
-    uint32_t io;
+    uint32_t io = 0;
     /*uint32_t value;*/
     // 参数数量=1
     if ((argc != 2 )) {
@@ -338,7 +340,10 @@ uint32_t do_ior(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
         printf("%s\r\n", cmdtp->usage);
         return 1;
     }
-    if (0 == sscanf((char_t *)argv[1], "%i", &io)) {
+
+    io = atoi((const char *)argv[1]);
+    if (0 == io)
+    {
         printf ("Usage:\r\n");
         printf ("%s\r\n", cmdtp->usage);
         return 1;
@@ -355,23 +360,27 @@ SHELL_CMD(
 );
 
 
+
 uint32_t
 do_deltask(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
-    uint32_t taskid;
+    uint32_t taskid = 0;
+
     if (argc != 2)
     {
         printf("Usage:\r\n");
         printf("%s\r\n", cmdtp->usage);
         return 1;
     }
-    if (0 == sscanf((char_t *) argv[1], "%i", &taskid))
+
+    taskid = atoi((const char *)argv[1]);
+    if (0 == taskid)
     {
         printf("Usage:\r\n");
         printf("%s\r\n", cmdtp->usage);
         return 1;
     }
-    if (255 <= sscanf((char_t *) argv[1], "%i", &taskid))
+    if (255 <= taskid)
     {
         printf("Usage:\r\n");
         printf("%s\r\n", cmdtp->usage);
@@ -385,7 +394,7 @@ SHELL_CMD(
     deltask,    CFG_MAXARGS,        do_deltask,
     "deltask \r\t taskid \r\t\t\t\t delete task\n"
 );
-#endif
+
 uint32_t
 do_show_osecb(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
