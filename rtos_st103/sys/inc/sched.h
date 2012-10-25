@@ -1,3 +1,13 @@
+/**
+ ******************************************************************************
+ * @file       sched.h
+ * @version    V0.0.1
+ * @brief      sched.
+ * @details    This file including all API functions's implement of sched.
+ * @copy       Copyrigth(C)
+ *
+ ******************************************************************************
+ */
 #ifndef _SCHED_H_
 #define _SCHED_H_
 

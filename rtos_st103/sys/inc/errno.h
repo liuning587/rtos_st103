@@ -152,4 +152,56 @@
 #define	ENOMEDIUM	123	/* No medium found */
 #define	EMEDIUMTYPE	124	/* Wrong medium type */
 
+typedef enum
+{
+    flOK      = 0,    /* Status code for operation.
+                         A zero value indicates success,
+                         other codes are the extended
+                         DOS codes. */
+    flBadFunction       = 1,
+    flFileNotFound      = 2,
+    flPathNotFound      = 3,
+    flTooManyOpenFiles  = 4,
+    flNoWriteAccess     = 5,
+    flBadFileHandle     = 6,
+    flDriveNotAvailable = 9,
+    flNonFATformat      = 10,
+    flFormatNotSupported = 11,
+    flNoMoreFiles       = 18,
+    flWriteProtect      = 19,
+    flBadDriveHandle    = 20,
+    flDriveNotReady     = 21,
+    flUnknownCmd        = 22,
+    flBadFormat         = 23,
+    flBadLength         = 24,
+    flDataError         = 25,
+    flUnknownMedia      = 26,
+    flSectorNotFound    = 27,
+    flOutOfPaper        = 28,
+    flWriteFault        = 29,
+    flReadFault         = 30,
+    flGeneralFailure    = 31,
+    flDiskChange        = 34,
+    flVppFailure        = 50,
+    flBadParameter      = 51,
+    flNoSpaceInVolume   = 52,
+    flInvalidFATchain   = 53,
+    flRootDirectoryFull = 54,
+    flNotMounted        = 55,
+    flPathIsRootDirectory = 56,
+    flNotADirectory     = 57,
+    flDirectoryNotEmpty = 58,
+    flFileIsADirectory  = 59,
+    flAdapterNotFound   = 60,
+    flFormattingError   = 62,
+    flNotEnoughMemory   = 63,
+    flVolumeTooSmall    = 64,
+    flBufferingError    = 65,
+    flFileAlreadyExists = 80,
+
+    flIncomplete        = 100,
+    flTimedOut          = 101,
+    flTooManyComponents = 102
+} FLStatus;
+
 #endif
