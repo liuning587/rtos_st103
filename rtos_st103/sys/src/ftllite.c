@@ -30,7 +30,7 @@
 #endif
 
 #define FLASH_CHIP_NUM          (1u)                /**< flash数量 */
-#define FLASH_ERASE_BLOCK_SIZE  0x10000L            /**< 擦除基本单位大小64k */
+#define FLASH_ERASE_BLOCK_SIZE  0x10000l            /**< 擦除基本单位大小64k */
 #define UNIT_SIZE               0x10000
 #define UNIT_SIZE_BITS          16
 #define MAX_UNIT_COUNT          ((FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>UNIT_SIZE_BITS)
@@ -233,6 +233,9 @@ extern void sysFeedDog();
                                 if (status != flOK)     \
                                     return status; }
 
+/*-----------------------------------------------------------------------------
+ Section: Public Function
+ ----------------------------------------------------------------------------*/
 /**
  ******************************************************************************
  * @brief   从flash中读取数据到ftl缓存
@@ -249,17 +252,17 @@ extern void sysFeedDog();
  ******************************************************************************
  */
 static void*
-flashMap(Flare vol, uint32_t address, uint32_t length )
+flashMap(Flare vol, uint32_t address, uint32_t length)
 {
     if (length > SECTOR_SIZE + sizeof(UnitHeader)) return NULL;
-    vol.flash->read(vol.flash,address,MapBuf,length);
+    vol.flash->read(vol.flash, address, MapBuf, length);
     vol.mapBuffer.remapped = TRUE;
-    return (void  *)MapBuf;
+    return (void *)MapBuf;
 }
 
 /**
  ******************************************************************************
- * @brief      取单元物理地址
+ * @brief      取单元物理页地址
  * @param[in]  vol        : Pointer identifying drive
  * @param[in]  unit       : unit pointer
  * @retval     physical address of unit
@@ -272,12 +275,12 @@ flashMap(Flare vol, uint32_t address, uint32_t length )
 static uint32_t
 physicalBase(Flare vol, const Unit *unit)
 {
-  return (uint32_t)(unit - vol.physicalUnits) << vol.unitSizeBits;
+    return (uint32_t)(unit - vol.physicalUnits) << vol.unitSizeBits;
 }
 
 /**
  ******************************************************************************
- * @brief       逻辑地址转换为物理地址
+ * @brief       逻辑扇区地址转换为物理扇区地址
  * @param[in]  vol        : Pointer identifying drive
  * @param[in]  address    : logical sector no.
  *
@@ -291,13 +294,14 @@ physicalBase(Flare vol, const Unit *unit)
 static uint32_t
 logical2Physical(Flare vol, LogicalSectorNo address)
 {
-  return physicalBase(&vol, vol.logicalUnits[address >> (vol.unitSizeBits - SECTOR_SIZE_BITS)])
+    return physicalBase(&vol,
+            vol.logicalUnits[address >> (vol.unitSizeBits - SECTOR_SIZE_BITS)])
           | (((uint32_t) address << SECTOR_SIZE_BITS) & vol.unitOffsetMask);
 }
 
 /**
  ******************************************************************************
- * @brief   读取一个逻辑块至缓存,返回缓存首地址
+ * @brief   读取一个逻辑扇区至缓存,返回缓存首地址
  * @param[in]  vol        : Pointer identifying drive
  * @param[in]  address    : logical sector no.
  * @retval     Pointer to sector on Flash
@@ -310,26 +314,12 @@ logical2Physical(Flare vol, LogicalSectorNo address)
 static void *
 mapLogical(Flare vol, LogicalSectorNo address)
 {
-  return flashMap(&vol, logical2Physical(&vol, address), SECTOR_SIZE);
+    return flashMap(&vol, logical2Physical(&vol, address), SECTOR_SIZE);
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                a l l o c E n t r y O f f s e t            */
-/*                                    */
-/* Returns unit offset of given BAM entry                */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorNo    : BAM entry no.                    */
-/*                                                                      */
-/* Returns:                                                             */
-/*    Offset of BAM entry in unit                    */
-/*----------------------------------------------------------------------*/
 /**
  ******************************************************************************
- * @brief
+ * @brief 获取扇区映射表数据
  * @param[in]  vol          : Pointer identifying drive
  * @param[in]  sectorNo     : BAM entry no
  *
@@ -340,125 +330,126 @@ mapLogical(Flare vol, LogicalSectorNo address)
  * @note
  ******************************************************************************
  */
-static int allocEntryOffset(Flare vol, int sectorNo)
+static int
+allocEntryOffset(Flare vol, int sectorNo)
 {
-  return (int) (vol.bamOffset + sizeof(VirtualAddress) * sectorNo);
+    return (int)(vol.bamOffset + sizeof(VirtualAddress) * sectorNo);
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                 m a p U n i t H e a d e r             */
-/*                                    */
-/* Map a unit header and return pointer to it.                */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    unit        : Unit to map header                */
-/*                                                                      */
-/* Returns:                                                             */
-/*    Pointer to mapped unit header                    */
-/*    blockAllocMap    : (optional) Pointer to mapped BAM        */
-/*----------------------------------------------------------------------*/
-
-static UnitHeader  *mapUnitHeader(Flare vol,
-                     const Unit *unit,
-                     uint32_t  **blockAllocMap)
+/**
+ ******************************************************************************
+ * @brief 读取物理单元头信息
+ * @param[in]  vol              : Pointer identifying drive
+ * @param[in]  unit             : Unit to map header
+ * @param[out] blockAllocMap    : (optional) Pointer to mapped BAM
+ *
+ * @retval     Pointer to mapped unit header
+ *
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static UnitHeader*
+mapUnitHeader(Flare vol,
+        const Unit *unit,
+        uint32_t  **blockAllocMap)
 {
-  UnitHeader  *unitHeader;
+    UnitHeader  *unitHeader;
+    int length = sizeof(UnitHeader);
 
-  int length = sizeof(UnitHeader);
-  if (blockAllocMap)
-    length = allocEntryOffset(&vol,vol.sectorsPerUnit);
-  unitHeader = (UnitHeader  *) flashMap(&vol,physicalBase(&vol,unit),length);
-  if (blockAllocMap)
-    *blockAllocMap = (uint32_t  *) ((char  *) unitHeader + allocEntryOffset(&vol,0));
+    if (blockAllocMap != NULL)
+        length = allocEntryOffset(&vol, vol.sectorsPerUnit);
+    unitHeader = (UnitHeader *)flashMap(&vol, physicalBase(&vol, unit), length);
+    if (blockAllocMap != NULL)
+        *blockAllocMap = (uint32_t *)((char *)unitHeader + allocEntryOffset(&vol, 0));
 
-  return unitHeader;
+    return unitHeader;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                  s e t u p M a p C a c h e            */
-/*                                    */
-/* Sets up map cache sector to contents of specified Virtual Map page    */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    pageNo        : Page no. to copy to map cache            */
-/*                                                                      */
-/*----------------------------------------------------------------------*/
-
-static void setupMapCache(Flare vol,  VirtualSectorNo pageNo)
+/**
+ ******************************************************************************
+ * @brief 设置虚拟页映射缓存
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[out] pageNo     : Page no. to copy to map cache
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ *  Sets up map cache sector to contents of specified Virtual Map page
+ ******************************************************************************
+ */
+static void
+setupMapCache(Flare vol, VirtualSectorNo pageNo)
 {
-  vol.flash->read(vol.flash,logical2Physical(&vol,vol.pageTable[pageNo]),mapCache,SECTOR_SIZE);
+  vol.flash->read(vol.flash,
+          logical2Physical(&vol, vol.pageTable[pageNo]),
+          mapCache,
+          SECTOR_SIZE);
   if (pageNo == vol.replacementPageNo) {
-    int i;
+    uint32_t* replacementPage = (uint32_t*)mapLogical(&vol, vol.replacementPageAddress);
 
-    uint32_t  *replacementPage =
-    (uint32_t  *) mapLogical(&vol,vol.replacementPageAddress);
-
-    for (i = 0; (unsigned)i < ADDRESSES_PER_SECTOR; i++) {
+    for (int i = 0; (unsigned)i < ADDRESSES_PER_SECTOR; i++) {
       if (mapCache[i] == DELETED_ADDRESS)
-    mapCache[i] = replacementPage[i];
+          mapCache[i] = replacementPage[i];
     }
   }
   buffer.sectorNo = pageNo;
   buffer.owner = &vol;
 }
 
-/*----------------------------------------------------------------------*/
-/*                v i r t u a l 2 L o g i c a l            */
-/*                                    */
-/* Translates virtual sector no. to logical sector no.            */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorNo    : Virtual sector no.                */
-/*                                                                      */
-/* Returns:                                                             */
-/*    Logical sector no. corresponding to virtual sector no.        */
-/*----------------------------------------------------------------------*/
-
-static LogicalSectorNo virtual2Logical(Flare vol,  VirtualSectorNo sectorNo)
+/**
+ ******************************************************************************
+ * @brief      虚拟扇区号 转换为 逻辑扇区号
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  sectorNo   : Virtual sector no.
+ * @retval     逻辑扇区号
+ *
+ * @details
+ *
+ * @note
+ *  Translates virtual sector no. to logical sector no.
+ ******************************************************************************
+ */
+static LogicalSectorNo
+virtual2Logical(Flare vol, VirtualSectorNo sectorNo)
 {
-  LogicalAddress virtualMapEntry;
+    LogicalAddress virtualMapEntry;
 
-  if (sectorNo < vol.directAddressingSectors)
-    return vol.pageTable[sectorNo];
-  else {
-    unsigned pageNo;
-    int sectorInPage;
+    if (sectorNo < vol.directAddressingSectors)
+        return vol.pageTable[sectorNo];
+    else {
+        unsigned pageNo;
+        int sectorInPage;
 
-    sectorNo -= vol.noOfPages;
-    pageNo = (int) (sectorNo >> (PAGE_SIZE_BITS - SECTOR_SIZE_BITS));
-    sectorInPage = (int) (sectorNo) % ADDRESSES_PER_SECTOR;
-    {
+        sectorNo -= vol.noOfPages;
+        pageNo = (int) (sectorNo >> (PAGE_SIZE_BITS - SECTOR_SIZE_BITS));
+        sectorInPage = (int) (sectorNo) % ADDRESSES_PER_SECTOR;
 
-      if (buffer.sectorNo != pageNo || buffer.owner != &vol)
-        setupMapCache(&vol,pageNo);
-      virtualMapEntry = mapCache[sectorInPage];
+        if (buffer.sectorNo != pageNo || buffer.owner != &vol)
+            setupMapCache(&vol, pageNo);
+        virtualMapEntry = mapCache[sectorInPage];
 
-      return (LogicalSectorNo) (virtualMapEntry >> SECTOR_SIZE_BITS);
+        return (LogicalSectorNo) (virtualMapEntry >> SECTOR_SIZE_BITS);
     }
-  }
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                  v e r i f y F o r m a t             */
-/*                                    */
-/* Verify an FTL unit header.                        */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    unitHeader    : Pointer to unit header            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    TRUE if header is correct. FALSE if not.            */
-/*----------------------------------------------------------------------*/
-
-static FLBoolean verifyFormat(UnitHeader  *unitHeader)
+/**
+ ******************************************************************************
+ * @brief      校验FTL单元头信息
+ * @param[in]  unitHeader    : Pointer to unit header
+ *
+ * @retval     TRUE if header is correct. FALSE if not.
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static FLBoolean
+verifyFormat(UnitHeader *unitHeader)
 {
 
   return memcmp(unitHeader->formatPattern + 2,
@@ -466,349 +457,339 @@ static FLBoolean verifyFormat(UnitHeader  *unitHeader)
          sizeof unitHeader->formatPattern - 2) == 0;
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                  f o r m a t U n i t                */
-/*                                    */
-/* Formats a unit by erasing it and writing a unit header.        */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    unit        : Unit to format                */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
+/**
+ ******************************************************************************
+ * @brief      格式化物理单元
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  unit       : Unit to format
+ * @retval     FLStatus   : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Formats a unit by erasing it and writing a unit header.
+ ******************************************************************************
+ */
 static FLStatus formatUnit(Flare vol,  Unit *unit)
 {
-  unsigned unitHeaderLength = allocEntryOffset(&vol,vol.unitHeaderSectors);
-  uint32_t eraseCount=0;
+    unsigned unitHeaderLength = allocEntryOffset(&vol, vol.unitHeaderSectors);
+    uint32_t eraseCount=0;
 
-
-
-  vol.flash->read(vol.flash,
+    /* 读取擦除次数 */
+    vol.flash->read(vol.flash,
             physicalBase(&vol,unit) + eraseCountOffset,
             &eraseCount,
             4);
 
+    if (eraseCount == 0xffffffffl) eraseCount = 0;
 
-  if (eraseCount == 0xffffffffl) eraseCount = 0;
+    unit->noOfFreeSectors = FREE_UNIT;    /* 记为空闲单元 */
+    unit->noOfGarbageSectors = 0;
 
-
-  unit->noOfFreeSectors = FREE_UNIT;
-  unit->noOfGarbageSectors = 0;
-
-
-  checkStatus(vol.flash->erase(vol.flash,
-              (int) (physicalBase(&vol,unit) >> vol.erasableBlockSizeBits),
-              1 << (vol.unitSizeBits - vol.erasableBlockSizeBits)));
+    /* 擦除 */
+    checkStatus(vol.flash->erase(vol.flash,
+            (int) (physicalBase(&vol,unit) >> vol.erasableBlockSizeBits),
+            1 << (vol.unitSizeBits - vol.erasableBlockSizeBits)));
 
 
-  /* We will copy the unit header as far as the format entries of the BAM
+    /* We will copy the unit header as far as the format entries of the BAM
      from another unit (logical unit 0) */
 
-  buffer.sectorNo = UNASSIGNED_SECTOR;    /* Invalidate map cache so we can
-                         use it as a buffer */
-  if (vol.logicalUnits[vol.firstPhysicalEUN]) {
-    vol.flash->read(vol.flash,
-           physicalBase(&vol,vol.logicalUnits[vol.firstPhysicalEUN]),
-           uh,
-           unitHeaderLength);
-  }
+    buffer.sectorNo = UNASSIGNED_SECTOR;    /* Invalidate map cache so we can
+                                               use it as a buffer */
+    if (vol.logicalUnits[vol.firstPhysicalEUN]) {
+        vol.flash->read(vol.flash,
+               physicalBase(&vol, vol.logicalUnits[vol.firstPhysicalEUN]),
+               uh,
+               unitHeaderLength);
+    }
 
-  uh->wearLevelingInfo = ++vol.currWearLevelingInfo;
-  uh->eraseCount = eraseCount+1;
-  uh->logicalUnitNo=UNASSIGNED_UNIT_NO;
+    uh->wearLevelingInfo = ++vol.currWearLevelingInfo;
+    uh->eraseCount = eraseCount + 1;    /* 擦除次数++ */
+    uh->logicalUnitNo = UNASSIGNED_UNIT_NO;
 
-  checkStatus(vol.flash->write(vol.flash,
+    /* 写入物理单元头信息 */
+    checkStatus(vol.flash->write(vol.flash,
               physicalBase(&vol,unit),
               uh,
               unitHeaderLength));
 
-  return flOK;
+    return flOK;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                   m o u n t U n i t                */
-/*                                    */
-/* Performs mount scan for a single unit                */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    unit        : Unit to mount                    */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus mountUnit(Flare vol,  Unit *unit)
+/**
+ ******************************************************************************
+ * @brief      挂载一个物理单元
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in] unit        : Unit to mount
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Performs mount scan for a single unit
+ ******************************************************************************
+ */
+static FLStatus
+mountUnit(Flare vol, Unit *unit)
 {
-  unsigned i;
-  LogicalSectorNo sectorAddress;
-  uint32_t  *blockAllocMap;
+    unsigned i;
+    LogicalSectorNo sectorAddress;
+    uint32_t *blockAllocMap;
 
-  UnitHeader  *unitHeader = mapUnitHeader(&vol,unit,&blockAllocMap);
+    UnitHeader *unitHeader = mapUnitHeader(&vol, unit, &blockAllocMap);
 
-  UnitNo logicalUnitNo = unitHeader->logicalUnitNo;
+    UnitNo logicalUnitNo = unitHeader->logicalUnitNo;
 
-  unit->noOfGarbageSectors = 0;
-  unit->noOfFreeSectors = FREE_UNIT;
+    unit->noOfGarbageSectors = 0;
+    unit->noOfFreeSectors = FREE_UNIT;
 
-  if (!verifyFormat(unitHeader) ||
+    if (!verifyFormat(unitHeader) ||            /* 单元格式无效 */
       ((logicalUnitNo != UNASSIGNED_UNIT_NO) &&
        ((logicalUnitNo >= vol.noOfUnits) ||
         (logicalUnitNo < vol.firstPhysicalEUN) ||
         vol.logicalUnits[logicalUnitNo]))) {
-    if (vol.transferUnit == NULL)
-      vol.transferUnit = unit;
-    return flBadFormat;
-  }
+        if (vol.transferUnit == NULL)
+            vol.transferUnit = unit;
+        return flBadFormat;
+    }
 
-  if (logicalUnitNo == UNASSIGNED_UNIT_NO) {
-    vol.transferUnit = unit;
-    return flOK;        /* this is a transfer unit */
-  }
+    if (logicalUnitNo == UNASSIGNED_UNIT_NO) {
+        vol.transferUnit = unit;
+        return flOK;        /* this is a transfer unit */
+    }
 
-  if (unitHeader->wearLevelingInfo > vol.currWearLevelingInfo &&
+    /* 更新磨损级别 */
+    if (unitHeader->wearLevelingInfo > vol.currWearLevelingInfo &&
       unitHeader->wearLevelingInfo != 0xffffffffl)
-    vol.currWearLevelingInfo = unitHeader->wearLevelingInfo;
+        vol.currWearLevelingInfo = unitHeader->wearLevelingInfo;
 
+    /* 更新最大擦除次数 */
     if (unitHeader->eraseCount > vol.maxEraseCount &&
       unitHeader->eraseCount != 0xffffffffl)
-    vol.maxEraseCount = unitHeader->eraseCount;
+        vol.maxEraseCount = unitHeader->eraseCount;
 
-  /* count sectors and setup virtual map */
-  sectorAddress =
+    /* count sectors and setup virtual map */
+    sectorAddress =
      ((LogicalSectorNo) logicalUnitNo << (vol.unitSizeBits - SECTOR_SIZE_BITS));
-  unit->noOfFreeSectors = 0;
-  for (i = 0; i < vol.sectorsPerUnit; i++, sectorAddress++) {
-    VirtualAddress allocMapEntry = blockAllocMap[i];
+    unit->noOfFreeSectors = 0;
+    for (i = 0; i < vol.sectorsPerUnit; i++, sectorAddress++) {
+        VirtualAddress allocMapEntry = blockAllocMap[i];
 
-    if (allocMapEntry == GARBAGE_SECTOR || (unsigned long)allocMapEntry == ALLOCATED_SECTOR)
-      unit->noOfGarbageSectors++;
-    else if ((unsigned long)allocMapEntry == FREE_SECTOR) {
-      unit->noOfFreeSectors++;
-      vol.totalFreeSectors++;
+        if (allocMapEntry == GARBAGE_SECTOR || (unsigned long)allocMapEntry == ALLOCATED_SECTOR)
+            unit->noOfGarbageSectors++; /* 统计垃圾扇区 */
+        else if ((unsigned long)allocMapEntry == FREE_SECTOR) {
+            unit->noOfFreeSectors++;  /* 统计空闲扇区 */
+            vol.totalFreeSectors++;
+        }
+        else if (allocMapEntry < vol.directAddressingMemory) { /* 直接访问地址 */
+            char signature = (short) (allocMapEntry) & SECTOR_OFFSET_MASK;
+            if (signature == DATA_SECTOR || signature == REPLACEMENT_PAGE) {
+                int pageNo = (int) (allocMapEntry >> SECTOR_SIZE_BITS) + vol.noOfPages;
+                if (pageNo >= 0)
+                    if (signature == DATA_SECTOR)
+                        vol.pageTable[pageNo] = sectorAddress;
+                    else {
+                        vol.replacementPageAddress = sectorAddress;
+                        vol.replacementPageNo = pageNo;
+                    }
+            }
+        }
     }
-    else if (allocMapEntry < vol.directAddressingMemory) {
-      char signature = (short) (allocMapEntry) & SECTOR_OFFSET_MASK;
-      if (signature == DATA_SECTOR || signature == REPLACEMENT_PAGE) {
-    int pageNo = (int) (allocMapEntry >> SECTOR_SIZE_BITS) + vol.noOfPages;
-    if (pageNo >= 0)
-      if (signature == DATA_SECTOR)
-        vol.pageTable[pageNo] = sectorAddress;
-      else {
-        vol.replacementPageAddress = sectorAddress;
-        vol.replacementPageNo = pageNo;
-      }
-      }
-    }
-  }
 
-  /* Place the logical mapping of the unit */
-  vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
-  vol.logicalUnits[logicalUnitNo] = unit;
+    /* Place the logical mapping of the unit */
+    vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
+    vol.logicalUnits[logicalUnitNo] = unit;
 
-  return flOK;
+    return flOK;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                   a s s i g n U n i t                */
-/*                                    */
-/* Assigns a logical unit no. to a unit                    */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    unit        : Unit to assign                */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus assignUnit(Flare vol,  Unit *unit, UnitNo logicalUnitNo)
+/**
+ ******************************************************************************
+ * @brief      分配一个逻辑单元
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  unit       : Unit to assign
+ * @param[in]  logicalUnitNo : 逻辑单元号
+ *
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Assigns a logical unit no. to a unit
+ * 实质上是讲逻辑单元号写到物理单元头信息中
+ ******************************************************************************
+ */
+static FLStatus
+assignUnit(Flare vol, Unit *unit, UnitNo logicalUnitNo)
 {
-  uint16_t unitNoToWrite;
+    uint16_t unitNoToWrite = logicalUnitNo;
 
-  unitNoToWrite=logicalUnitNo;
-
-  return vol.flash->write(vol.flash,
-            physicalBase(&vol,unit) + logicalUnitNoOffset,
+    return vol.flash->write(vol.flash,
+            physicalBase(&vol, unit) + logicalUnitNoOffset,
             &unitNoToWrite,
             sizeof unitNoToWrite);
 }
 
-
-/*----------------------------------------------------------------------*/
-/*            b e s t U n i t T o T r a n s f e r            */
-/*                                    */
-/* Find best candidate for unit transfer, usually on the basis of which    */
-/* unit has the most garbage space. A lower wear-leveling info serves    */
-/* as a tie-breaker. If 'leastUsed' is NOT specified, then the least    */
-/* wear-leveling info is the only criterion.                */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    leastUsed    : Whether most garbage space is the criterion    */
-/*                                                                      */
-/* Returns:                                                             */
-/*    Best unit to transfer                        */
-/*----------------------------------------------------------------------*/
-
-static UnitNo bestUnitToTransfer(Flare vol,  FLBoolean leastUsed)
+/**
+ ******************************************************************************
+ * @brief 找出磨损最少的单元
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  leastUsed  : Whether most garbage space is the criterion
+ * @retval     Best unit to transfer
+ *
+ * @details
+ *
+ * @note
+ * Find best candidate for unit transfer, usually on the basis of which
+ * unit has the most garbage space. A lower wear-leveling info serves
+ * as a tie-breaker. If 'leastUsed' is NOT specified, then the least
+ * wear-leveling info is the only criterion.
+ ******************************************************************************
+ */
+static UnitNo
+bestUnitToTransfer(Flare vol, FLBoolean leastUsed)
 {
-  UnitNo i;
+    UnitNo i;
 
-  int mostGarbageSectors = 1;
-  unsigned long int leastWearLevelingInfo = 0xffffffffl;
-  UnitNo bestUnitSoFar = UNASSIGNED_UNIT_NO;
+    int mostGarbageSectors = 1;
+    unsigned long int leastWearLevelingInfo = 0xffffffffl;
+    UnitNo bestUnitSoFar = UNASSIGNED_UNIT_NO;
 
-  for (i = 0; i < vol.noOfUnits; i++) {
-    Unit *unit = vol.logicalUnits[i];
-    if (unit && (!leastUsed || (unit->noOfGarbageSectors >= mostGarbageSectors))) {
-      UnitHeader  *unitHeader = mapUnitHeader(&vol,unit,NULL);
-      if ((leastUsed && (unit->noOfGarbageSectors > mostGarbageSectors)) ||
-      ((unitHeader->wearLevelingInfo) < leastWearLevelingInfo)) {
-    mostGarbageSectors = unit->noOfGarbageSectors;
-    leastWearLevelingInfo = (unitHeader->wearLevelingInfo);
-    bestUnitSoFar = i;
-      }
+    for (i = 0; i < vol.noOfUnits; i++) {
+        Unit *unit = vol.logicalUnits[i];
+        if (unit && (!leastUsed || (unit->noOfGarbageSectors >= mostGarbageSectors))) {
+            UnitHeader  *unitHeader = mapUnitHeader(&vol, unit, NULL);
+            if ((leastUsed && (unit->noOfGarbageSectors > mostGarbageSectors)) ||
+                ((unitHeader->wearLevelingInfo) < leastWearLevelingInfo)) {
+                    mostGarbageSectors = unit->noOfGarbageSectors;
+                    leastWearLevelingInfo = (unitHeader->wearLevelingInfo);
+                    bestUnitSoFar = i;
+            }
+        }
     }
-  }
 
-  return bestUnitSoFar;
+    return bestUnitSoFar;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                   u n i t T r a n s f e r            */
-/*                                    */
-/* Performs a unit transfer from a selected unit to a tranfer unit.    */
-/*                                                                      */
-/* A side effect is to invalidate the map cache (reused as buffer).    */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    toUnit          : Target transfer unit                */
-/*    fromUnitNo:    : Source logical unit no.            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus unitTransfer(Flare vol,  Unit *toUnit, UnitNo fromUnitNo)
+/**
+ ******************************************************************************
+ * @brief 将fromUnitNo拷贝至toUnit(只拷贝有效的物理扇区)
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  toUnit     : Target transfer unit
+ * @param[in]  fromUnitNo : Source logical unit no.
+ * @retval     FLStatus   : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Performs a unit transfer from a selected unit to a tranfer unit.
+ * A side effect is to invalidate the map cache (reused as buffer).
+ ******************************************************************************
+ */
+static FLStatus
+unitTransfer(Flare vol, Unit *toUnit, UnitNo fromUnitNo)
 {
-  unsigned i;
-  Unit *fromUnit = vol.logicalUnits[fromUnitNo];
+    unsigned i;
+    Unit *fromUnit = vol.logicalUnits[fromUnitNo];
 
-  UnitHeader  *transferUnitHeader = mapUnitHeader(&vol,toUnit,NULL);
-  if (!verifyFormat(transferUnitHeader) ||
-      transferUnitHeader->logicalUnitNo != UNASSIGNED_UNIT_NO)
-    /* previous formatting failed or did not complete.         */
-    checkStatus(formatUnit(&vol,toUnit));
+    UnitHeader  *transferUnitHeader = mapUnitHeader(&vol, toUnit, NULL);
+    /* 若之前toUnit格式失败,则现在格式化 */
+    if (!verifyFormat(transferUnitHeader) ||
+            transferUnitHeader->logicalUnitNo != UNASSIGNED_UNIT_NO)
+        /* previous formatting failed or did not complete.         */
+        checkStatus(formatUnit(&vol, toUnit));
 
-  /* Should the transfer not complete, the unit is marked to be erased */
-  checkStatus(assignUnit(&vol,toUnit,MARKED_FOR_ERASE));
+    /* Should the transfer not complete, the unit is marked to be erased */
+    checkStatus(assignUnit(&vol, toUnit, MARKED_FOR_ERASE));    /* 标记为擦除 */
 
+    /* copy the block allocation table and the good sectors */
+    /* 拷贝有用的扇区和映射表 */
+    for (i = 0; i < vol.sectorsPerUnit;) {
+        int j;
 
+        FLBoolean needToWrite = FALSE;
+        int firstOffset = allocEntryOffset(&vol, i);
 
-  /* copy the block allocation table and the good sectors */
-  for (i = 0; i < vol.sectorsPerUnit;) {
-    int j;
+        /* Up to 128 bytes of the BAM are processed per loop */
+        int nEntries = (128 - (firstOffset & 127)) / sizeof(VirtualAddress);
 
-    FLBoolean needToWrite = FALSE;
-    int firstOffset = allocEntryOffset(&vol,i);
+        /* We are going to use the Virtual Map cache as our sector buffer in the */
+        /* transfer, so let's better invalidate the cache first.           */
+        buffer.sectorNo = UNASSIGNED_SECTOR;
 
-    /* Up to 128 bytes of the BAM are processed per loop */
-    int nEntries = (128 - (firstOffset & 127)) / sizeof(VirtualAddress);
+        /* Read some of the BAM */
+        vol.flash->read(vol.flash,
+               physicalBase(&vol,fromUnit) + firstOffset,
+               sectorCopy,
+               nEntries * sizeof(VirtualAddress));
 
-    /* We are going to use the Virtual Map cache as our sector buffer in the */
-    /* transfer, so let's better invalidate the cache first.           */
+        /* Convert garbage entries to free entries */
+        for (j = 0; j < nEntries && i+j < vol.sectorsPerUnit; j++) {
+            unsigned bamSignature = (unsigned) sectorCopy[j] & SECTOR_OFFSET_MASK;
+            if (bamSignature == DATA_SECTOR || bamSignature == REPLACEMENT_PAGE)
+                needToWrite = TRUE;
+            else if (bamSignature != FORMAT_SECTOR)
+                sectorCopy[j]=FREE_SECTOR;
+        }
 
-    buffer.sectorNo = UNASSIGNED_SECTOR;
+        if (needToWrite) {
+            FLStatus status;
 
-    /* Read some of the BAM */
-    vol.flash->read(vol.flash,
-           physicalBase(&vol,fromUnit) + firstOffset,
-           sectorCopy,
-           nEntries * sizeof(VirtualAddress));
-
-    /* Convert garbage entries to free entries */
-    for (j = 0; j < nEntries && i+j < vol.sectorsPerUnit; j++) {
-      unsigned bamSignature = (unsigned) sectorCopy[j] & SECTOR_OFFSET_MASK;
-      if (bamSignature == DATA_SECTOR ||
-      bamSignature == REPLACEMENT_PAGE)
-    needToWrite = TRUE;
-      else if (bamSignature != FORMAT_SECTOR)
-    sectorCopy[j]=FREE_SECTOR;
-    }
-
-    if (needToWrite) {
-      FLStatus status;
-
-      /* Write new BAM, and copy sectors that need to be copied */
-      status = vol.flash->write(vol.flash,
-              physicalBase(&vol,toUnit) + firstOffset,
-              sectorCopy,
-              nEntries * sizeof(VirtualAddress));
-      if (status != flOK) {
-
-    return status;
-      }
-
-      for (j = 0; j < nEntries && i+j < vol.sectorsPerUnit; j++) {
-    unsigned bamSignature = (unsigned) sectorCopy[j] & SECTOR_OFFSET_MASK;
-    if (bamSignature == DATA_SECTOR ||
-        bamSignature == REPLACEMENT_PAGE) { /* a good sector */
-      uint32_t sectorOffset = (uint32_t) (i+j) << SECTOR_SIZE_BITS;
-
-      vol.flash->read(vol.flash,
-             physicalBase(&vol,fromUnit) + sectorOffset,
-             sectorCopy,SECTOR_SIZE);
-      status = vol.flash->write(vol.flash,
-                  physicalBase(&vol,toUnit) + sectorOffset,
+            /* Write new BAM, and copy sectors that need to be copied */
+            status = vol.flash->write(vol.flash,
+                  physicalBase(&vol, toUnit) + firstOffset,
                   sectorCopy,
-                  SECTOR_SIZE);
-      if (status != flOK) {
+                  nEntries * sizeof(VirtualAddress));
+            if (status != flOK) {
+                return status;
+            }
 
-        return status;
-      }
-      vol.flash->read(vol.flash,
-             physicalBase(&vol,fromUnit) + firstOffset,
-             sectorCopy,
-             nEntries * sizeof(VirtualAddress));
+            for (j = 0; j < nEntries && i+j < vol.sectorsPerUnit; j++) {
+                unsigned bamSignature = (unsigned) sectorCopy[j] & SECTOR_OFFSET_MASK;
+                if (bamSignature == DATA_SECTOR || bamSignature == REPLACEMENT_PAGE) { /* a good sector */
+                    uint32_t sectorOffset = (uint32_t) (i+j) << SECTOR_SIZE_BITS;
+
+                    vol.flash->read(vol.flash,
+                            physicalBase(&vol, fromUnit) + sectorOffset,
+                            sectorCopy,
+                            SECTOR_SIZE);
+                    status = vol.flash->write(vol.flash,
+                            physicalBase(&vol, toUnit) + sectorOffset,
+                            sectorCopy,
+                            SECTOR_SIZE);
+                    if (status != flOK) {
+                        return status;
+                    }
+                    vol.flash->read(vol.flash,
+                            physicalBase(&vol, fromUnit) + firstOffset,
+                            sectorCopy,
+                            nEntries * sizeof(VirtualAddress));
+                }
+            }
+        }
+
+        i += nEntries;
     }
-      }
 
+    /* Write the new logical unit no. */
+    checkStatus(assignUnit(&vol, toUnit, fromUnitNo));  /* 写逻辑单元号 */
 
+    /* Mount the new unit in place of old one */
+    vol.logicalUnits[fromUnitNo] = NULL;
+    if (mountUnit(&vol,toUnit) == flOK) {
+        vol.totalFreeSectors -= fromUnit->noOfFreeSectors;  /* 更新空闲扇区 */
+
+        /* Finally, format the source unit (the new transfer unit) */
+        vol.transferUnit = fromUnit;
+        formatUnit(&vol, fromUnit);    /* nothing we can or should do if this fails */
+    }
+    else {        /* Something went wrong */
+        vol.logicalUnits[fromUnitNo] = fromUnit;    /* reinstate original unit */
+        return flGeneralFailure;
     }
 
-    i += nEntries;
-  }
-
-
-
-  /* Write the new logical unit no. */
-  checkStatus(assignUnit(&vol,toUnit,fromUnitNo));
-
-  /* Mount the new unit in place of old one */
-  vol.logicalUnits[fromUnitNo] = NULL;
-  if (mountUnit(&vol,toUnit) == flOK) {
-    vol.totalFreeSectors -= fromUnit->noOfFreeSectors;
-
-    /* Finally, format the source unit (the new transfer unit) */
-    vol.transferUnit = fromUnit;
-    formatUnit(&vol,fromUnit);    /* nothing we can or should do if this fails */
-  }
-  else {        /* Something went wrong */
-    vol.logicalUnits[fromUnitNo] = fromUnit;    /* reinstate original unit */
-    return flGeneralFailure;
-  }
-
-  return flOK;
+    return flOK;
 }
 
 
@@ -1433,9 +1414,6 @@ static FLStatus initTables(Flare vol)
 
 
 
-/*------------------------------------------------------------------------------
-Section: Public Function
-------------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------*/
 /*                       m a p S e c t o r                */
@@ -2093,5 +2071,5 @@ ftlget_maxEraseCount(void)
 
 
 
-/*------------------------------End of ftllite.c---------------------------------*/
+/*----------------------------End of ftllite.c-------------------------------*/
 
