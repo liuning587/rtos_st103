@@ -549,9 +549,9 @@ mountUnit(Flare vol, Unit *unit)
        ((logicalUnitNo >= vol.noOfUnits) ||
         (logicalUnitNo < vol.firstPhysicalEUN) ||
         vol.logicalUnits[logicalUnitNo]))) {
-        if (vol.transferUnit == NULL)
-            vol.transferUnit = unit;
-        return flBadFormat;
+            if (vol.transferUnit == NULL)
+                vol.transferUnit = unit;
+            return flBadFormat;
     }
 
     if (logicalUnitNo == UNASSIGNED_UNIT_NO) {
@@ -792,623 +792,603 @@ unitTransfer(Flare vol, Unit *toUnit, UnitNo fromUnitNo)
     return flOK;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                 g a r b a g e C o l l e c t            */
-/*                                    */
-/* Performs a unit transfer, selecting a unit to transfer and a        */
-/* transfer unit.                                                       */
-/*                                                                      */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus garbageCollect(Flare vol)
+/**
+ ******************************************************************************
+ * @brief      垃圾回收
+ * @param[in]  vol        : Pointer identifying drive
+ *
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Performs a unit transfer, selecting a unit to transfer and a transfer unit.
+ ******************************************************************************
+ */
+static FLStatus
+garbageCollect(Flare vol)
 {
-  FLStatus status;
-  UnitNo fromUnitNo;
+    FLStatus status;
+    UnitNo fromUnitNo;
 
-  if (vol.transferUnit == NULL)
-    return flWriteProtect;    /* Cannot recover space without a spare unit */
+    if (vol.transferUnit == NULL)
+        return flWriteProtect;    /* Cannot recover space without a spare unit */
 
-  fromUnitNo = bestUnitToTransfer(&vol,(rand () & 0xff) >= 4);
-  if (fromUnitNo == UNASSIGNED_UNIT_NO)
+    fromUnitNo = bestUnitToTransfer(&vol, (rand() & 0xff) >= 4);
+    if (fromUnitNo == UNASSIGNED_UNIT_NO)
     return flGeneralFailure;    /* nothing to collect */
 
-  /* Find a unit we can transfer to.                */
-  status = unitTransfer(&vol,vol.transferUnit,fromUnitNo);
-  if (status == flWriteFault) {
-    int i;
-    Unit *unit = vol.physicalUnits;
+    /* Find a unit we can transfer to.                */
+    status = unitTransfer(&vol, vol.transferUnit, fromUnitNo);
+    if (status == flWriteFault) {
+        int i;
+        Unit *unit = vol.physicalUnits;
 
-    for (i = 0; i < vol.noOfUnits; i++, unit++) {
-      if (unit->noOfGarbageSectors == 0 && unit->noOfFreeSectors < 0) {
-    if (unitTransfer(&vol,unit,fromUnitNo) == flOK)
-      return flOK;    /* found a good one */
-      }
+        for (i = 0; i < vol.noOfUnits; i++, unit++) {
+            if (unit->noOfGarbageSectors == 0 && unit->noOfFreeSectors < 0) {
+                if (unitTransfer(&vol,unit,fromUnitNo) == flOK)
+                    return flOK;    /* found a good one */
+                }
+        }
     }
-  }
 
-  return status;
+    return status;
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                      d e f r a g m e n t                */
-/*                                    */
-/* Performs unit transfers to arrange a minimum number of writable    */
-/* sectors.                                                             */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorsNeeded    : Minimum required sectors            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus defragment(Flare vol, long  *sectorsNeeded)
+/**
+ ******************************************************************************
+ * @brief 碎片整理
+ * @param[in]  vol              : Pointer identifying drive
+ * @param[out] sectorsNeeded    : Minimum required sectors
+ * @retval     FLStatus         : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Performs unit transfers to arrange a minimum number of writable sectors.
+ ******************************************************************************
+ */
+static FLStatus
+defragment(Flare vol, long *sectorsNeeded)
 {
-  while ((long)(vol.totalFreeSectors) < *sectorsNeeded
+    while ((long)(vol.totalFreeSectors) < *sectorsNeeded) {
+        if (vol.badFormat)
+            return flBadFormat;
 
-     ) {
-    if (vol.badFormat)
-      return flBadFormat;
-
-
-    checkStatus(garbageCollect(&vol));
-  }
-
-
-  *sectorsNeeded = vol.totalFreeSectors;
-
-  return flOK;
-}
-
-
-/*----------------------------------------------------------------------*/
-/*            b e s t U n i t T o A l l o c a t e            */
-/*                                    */
-/* Finds the best unit from which to allocate a sector. The unit    */
-/* selected is the one with most free space.                */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    Best unit to allocate                        */
-/*----------------------------------------------------------------------*/
-
-static Unit *bestUnitToAllocate(Flare vol)
-{
-  int i;
-
-  int mostFreeSectors = 0;
-  Unit *bestUnitSoFar = NULL;
-
-  for (i = 0; i < vol.noOfUnits; i++) {
-    Unit *unit = vol.logicalUnits[i];
-
-    if (unit && unit->noOfFreeSectors > mostFreeSectors) {
-      mostFreeSectors = unit->noOfFreeSectors;
-      bestUnitSoFar = unit;
+        checkStatus(garbageCollect(&vol));
     }
-  }
 
-  return bestUnitSoFar;
-}
+    *sectorsNeeded = vol.totalFreeSectors;
 
-
-/*----------------------------------------------------------------------*/
-/*               f i n d F r e e S e c t o r            */
-/*                                    */
-/* The allocation strategy goes this way:                               */
-/*                                                                      */
-/* We try to make consecutive virtual sectors physically consecutive if */
-/* possible. If not, we prefer to have consecutive sectors on the same  */
-/* unit at least. If all else fails, a sector is allocated on the unit  */
-/* with most space available.                                           */
-/*                                                                      */
-/* The object of this strategy is to cluster related data (e.g. a file  */
-/* data) in one unit, and to distribute unrelated data evenly among all */
-/* units.                                */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorNo        : virtual sector no. that we want to allocate.    */
-/*                                    */
-/* Returns:                                                             */
-/*    newAddress    : Allocated logical sector no.            */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus findFreeSector(Flare vol,
-                 VirtualSectorNo sectorNo,
-                 LogicalSectorNo *newAddress)
-{
-  unsigned iSector;
-  uint32_t  *blockAllocMap;
-  UnitHeader  *unitHeader;
-
-  Unit *allocationUnit = NULL;
-
-  LogicalSectorNo previousSectorAddress =
-     sectorNo > 0 ? virtual2Logical(&vol,sectorNo - 1) : UNASSIGNED_SECTOR;
-#ifdef DEBUG_PRINT
-  DEBUG_PRINT("Debug: findFreeSector -> %d !!\n\t", sectorNo);
-#endif
-  if (previousSectorAddress != UNASSIGNED_SECTOR &&
-      previousSectorAddress != DELETED_SECTOR) {
-    allocationUnit =
-    vol.logicalUnits[previousSectorAddress >> (vol.unitSizeBits - SECTOR_SIZE_BITS)];
-    if (allocationUnit->noOfFreeSectors > 0) {
-      unsigned int sectorIndex = ((unsigned) previousSectorAddress & (vol.sectorsPerUnit - 1)) + 1;
-      uint32_t  *nextSectorAddress =
-       (uint32_t  *) flashMap(&vol,
-                     physicalBase(&vol,allocationUnit) +
-                                          allocEntryOffset(&vol, sectorIndex),
-                     sizeof(VirtualAddress));
-      if (sectorIndex < vol.sectorsPerUnit && *nextSectorAddress == FREE_SECTOR) {
-    /* can write sequentially */
-    *newAddress = previousSectorAddress + 1;
     return flOK;
-      }
-    }
-    else
-      allocationUnit = NULL;    /* no space here, try elsewhere */
-  }
+}
 
-  if (allocationUnit == NULL)
-    allocationUnit = bestUnitToAllocate(&vol);
-  if (allocationUnit == NULL)    /* No ? then all is lost */ {
-#ifdef DEBUG_PRINT
-      DEBUG_PRINT("Debug: findFreeSector -> Unable to find free sector!!\n\t");
-#endif
-    return flGeneralFailure;
-  }
-  unitHeader = mapUnitHeader(&vol,allocationUnit,&blockAllocMap);
-  for (iSector = vol.unitHeaderSectors; iSector < vol.sectorsPerUnit; iSector++) {
-    if (blockAllocMap[iSector] == FREE_SECTOR) {
-      *newAddress = ((LogicalSectorNo) (unitHeader->logicalUnitNo) << (vol.unitSizeBits - SECTOR_SIZE_BITS)) +
-            iSector;
-      return flOK;
+/**
+ ******************************************************************************
+ * @brief 找出空闲扇区最多的逻辑单元
+ * @param[in]  vol        : Pointer identifying drive
+ *
+ * @retval     Best unit to allocate
+ *
+ * @details
+ *
+ * @note
+ * Finds the best unit from which to allocate a sector.
+ * The unitselected is the one with most free space.
+ ******************************************************************************
+ */
+static Unit*
+bestUnitToAllocate(Flare vol)
+{
+    int i;
+    int mostFreeSectors = 0;
+    Unit *bestUnitSoFar = NULL;
+
+    for (i = 0; i < vol.noOfUnits; i++) {
+        Unit *unit = vol.logicalUnits[i];
+
+        if (unit && unit->noOfFreeSectors > mostFreeSectors) {
+            mostFreeSectors = unit->noOfFreeSectors;
+            bestUnitSoFar = unit;
+        }
     }
-  }
+
+    return bestUnitSoFar;
+}
+
+/**
+ ******************************************************************************
+ * @brief 按虚拟扇区号找空闲的逻辑扇区
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[in]  sectorNo   : virtual sector no. that we want to allocate.
+ * @param[out] newAddress : Allocated logical sector no.
+ *
+ * @retval     FLStatus   : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * The allocation strategy goes this way:
+ *
+ * We try to make consecutive virtual sectors physically consecutive if
+ * possible. If not, we prefer to have consecutive sectors on the same
+ * unit at least. If all else fails, a sector is allocated on the unit
+ * with most space available.
+ *
+ * The object of this strategy is to cluster related data (e.g. a file
+ * data) in one unit, and to distribute unrelated data evenly among all
+ * units.
+ ******************************************************************************
+ */
+static FLStatus
+findFreeSector(Flare vol,
+        VirtualSectorNo sectorNo,
+        LogicalSectorNo *newAddress)
+{
+    unsigned iSector;
+    uint32_t *blockAllocMap;
+    UnitHeader *unitHeader;
+
+    Unit *allocationUnit = NULL;
+
+    LogicalSectorNo previousSectorAddress =
+    sectorNo > 0 ? virtual2Logical(&vol, sectorNo - 1) : UNASSIGNED_SECTOR;
+#ifdef DEBUG_PRINT
+    DEBUG_PRINT("Debug: findFreeSector -> %d !!\n\t", sectorNo);
+#endif
+    if (previousSectorAddress != UNASSIGNED_SECTOR &&
+            previousSectorAddress != DELETED_SECTOR) {
+        allocationUnit =
+        vol.logicalUnits[previousSectorAddress >> (vol.unitSizeBits - SECTOR_SIZE_BITS)];
+        if (allocationUnit->noOfFreeSectors > 0) {  /* 若当前单元有空闲扇区 */
+            unsigned int sectorIndex = ((unsigned) previousSectorAddress & (vol.sectorsPerUnit - 1)) + 1;   /* 这里加1了！ */
+            uint32_t  *nextSectorAddress =
+            (uint32_t  *) flashMap(&vol,
+                         physicalBase(&vol, allocationUnit) +
+                                              allocEntryOffset(&vol, sectorIndex),
+                         sizeof(VirtualAddress));
+            if (sectorIndex < vol.sectorsPerUnit && *nextSectorAddress == FREE_SECTOR) {
+                /* can write sequentially */
+                *newAddress = previousSectorAddress + 1;    /* 相邻的扇区可写 */
+                return flOK;
+            }
+        }
+        else
+            allocationUnit = NULL;    /* no space here, try elsewhere */
+    }
+
+    if (allocationUnit == NULL)
+        allocationUnit = bestUnitToAllocate(&vol);  /* 当前单元无空闲,寻找一个合适的单元 */
+    if (allocationUnit == NULL)    /* No ? then all is lost */ {
+#ifdef DEBUG_PRINT
+        DEBUG_PRINT("Debug: findFreeSector -> Unable to find free sector!!\n\t");
+#endif
+        return flGeneralFailure;
+    }
+    unitHeader = mapUnitHeader(&vol, allocationUnit, &blockAllocMap);
+    for (iSector = vol.unitHeaderSectors; iSector < vol.sectorsPerUnit; iSector++) {
+        if (blockAllocMap[iSector] == FREE_SECTOR) {    /* 寻找到一个空闲扇区 */
+            *newAddress = ((LogicalSectorNo) (unitHeader->logicalUnitNo) << (vol.unitSizeBits - SECTOR_SIZE_BITS)) +
+                iSector;
+            return flOK;
+        }
+    }
 #ifdef DEBUG_PRINT
     DEBUG_PRINT("Debug: findFreeSector -> Problem marking allocation map!!\n\t");
 #endif
 
-  return flGeneralFailure;    /* what are we doing here ? */
+    return flGeneralFailure;    /* what are we doing here ? */
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                   m a r k A l l o c M a p            */
-/*                                    */
-/* Writes a new value to a BAM entry.                    */
-/*                                                                      */
-/* This routine also updates the free & garbage sector counts.        */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorAddress    : Logical sector no. whose BAM entry to mark    */
-/*    allocMapEntry    : New BAM entry value                */
-/*    overwrite    : Whether we are overwriting some old value    */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus markAllocMap(Flare vol,
-               LogicalSectorNo sectorAddress,
-               VirtualAddress allocMapEntry,
-               FLBoolean overwrite)
+/**
+ ******************************************************************************
+ * @brief 写入一个新的BAM entry映射
+ * @param[in]  vol              : Pointer identifying drive
+ * @param[in]  sectorAddress    : Logical sector no. whose BAM entry to mark
+ * @param[in]  overwrite        : Whether we are overwriting some old value
+ *
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Writes a new value to a BAM entry.
+ * This routine also updates the free & garbage sector counts.
+ ******************************************************************************
+ */
+static FLStatus
+markAllocMap(Flare vol,
+        LogicalSectorNo sectorAddress,
+        VirtualAddress allocMapEntry,
+        FLBoolean overwrite)
 {
-  UnitNo unitNo = (UnitNo) (sectorAddress >> (vol.unitSizeBits - SECTOR_SIZE_BITS));
-  Unit *unit = vol.logicalUnits[unitNo];
-  int sectorInUnit = (unsigned) sectorAddress & (vol.sectorsPerUnit - 1);
-  uint32_t bamEntry;
+    UnitNo unitNo = (UnitNo)(sectorAddress >> (vol.unitSizeBits - SECTOR_SIZE_BITS));
+    Unit *unit = vol.logicalUnits[unitNo];
+    int sectorInUnit = (unsigned) sectorAddress & (vol.sectorsPerUnit - 1);
+    uint32_t bamEntry;
 
-  if (unitNo >= vol.noOfUnits - vol.noOfTransferUnits)
-    return flGeneralFailure;
+    if (unitNo >= vol.noOfUnits - vol.noOfTransferUnits)
+        return flGeneralFailure;
 
-  if (allocMapEntry == GARBAGE_SECTOR)
-    unit->noOfGarbageSectors++;
-  else if (!overwrite) {
-    unit->noOfFreeSectors--;
-    vol.totalFreeSectors--;
-  }
+    if (allocMapEntry == GARBAGE_SECTOR)
+        unit->noOfGarbageSectors++; /* 垃圾扇区 */
+    else if (!overwrite) {
+        unit->noOfFreeSectors--;
+        vol.totalFreeSectors--;
+    }
 
-  bamEntry=allocMapEntry;
+    bamEntry = allocMapEntry;
 
-  return vol.flash->write(vol.flash,
-            physicalBase(&vol,unit) + allocEntryOffset(&vol,sectorInUnit),
+    return vol.flash->write(vol.flash,
+            physicalBase(&vol, unit) + allocEntryOffset(&vol, sectorInUnit),
             &bamEntry,
             sizeof bamEntry);
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                d e l e t e L o g i c a l S e c t o r        */
-/*                                    */
-/* Marks a logical sector as deleted.                    */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorAddress    : Logical sector no. to delete            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus deleteLogicalSector(Flare vol,  LogicalSectorNo sectorAddress)
+/**
+ ******************************************************************************
+ * @brief 将逻辑扇区标记未垃圾扇区
+ * @param[in]  vol              : Pointer identifying drive
+ * @param[in]  sectorAddress    : Logical sector no. to delete
+ *
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Marks a logical sector as deleted.
+ ******************************************************************************
+ */
+static FLStatus
+deleteLogicalSector(Flare vol, LogicalSectorNo sectorAddress)
 {
-  if (sectorAddress == UNASSIGNED_SECTOR ||
-      sectorAddress == DELETED_SECTOR)
-    return flOK;
+    if (sectorAddress == UNASSIGNED_SECTOR || sectorAddress == DELETED_SECTOR)
+        return flOK;
 
-  return markAllocMap(&vol,sectorAddress,GARBAGE_SECTOR,TRUE);
+    return markAllocMap(&vol, sectorAddress, GARBAGE_SECTOR, TRUE);
 }
-
 
 /* forward definition */
 static FLStatus setVirtualMap(Flare vol,
                 VirtualSectorNo sectorNo,
                 LogicalSectorNo newAddress);
 
-
-/*----------------------------------------------------------------------*/
-/*               a l l o c a t e A n d W r i t e S e c t o r    */
-/*                                    */
-/* Allocates a sector or replacement page and (optionally) writes it.    */
-/*                                                                      */
-/* An allocated replacement page also becomes the active replacement     */
-/* page.                                */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorNo    : Virtual sector no. to write            */
-/*    fromAddress    : Address of sector data. If NULL, sector is    */
-/*              not written.                    */
-/*    replacementPage    : This is a replacement page sector.        */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus allocateAndWriteSector(Flare vol,
-                     VirtualSectorNo sectorNo,
-                     void  *fromAddress,
-                     FLBoolean replacementPage)
+/**
+ ******************************************************************************
+ * @brief 分配新扇区并写入
+ * @param[in]  vol              : Pointer identifying drive
+ * @param[in]  sectorNo         : Virtual sector no. to write
+ * @param[in]  fromAddress      : Address of sector data. If NULL, sector is
+ *                                not written.
+ * @param[in]  replacementPage  : This is a replacement page sector.
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ * Allocates a sector or replacement page and (optionally) writes it.
+ * An allocated replacement page also becomes the active replacement page.
+ ******************************************************************************
+ */
+static FLStatus
+allocateAndWriteSector(Flare vol,
+        VirtualSectorNo sectorNo,
+        void  *fromAddress,
+        FLBoolean replacementPage)
 {
-  FLStatus status;
-  LogicalSectorNo sectorAddress;
-  VirtualAddress bamEntry =
-    ((VirtualAddress) sectorNo - vol.noOfPages) << SECTOR_SIZE_BITS;
-  long sectorsNeeded = 1;
+    FLStatus status;
+    LogicalSectorNo sectorAddress;
+    VirtualAddress bamEntry = ((VirtualAddress) sectorNo - vol.noOfPages) << SECTOR_SIZE_BITS;
+    long sectorsNeeded = 1;
 #ifdef DEBUG_PRINT
-  DEBUG_PRINT("Debug: calling defrgment routine!!\n\t");
+    DEBUG_PRINT("Debug: calling defrgment routine!!\n\t");
 #endif
-  checkStatus(defragment(&vol,&sectorsNeeded));  /* Organize a free sector */
+    /* 碎片整理 */
+    checkStatus(defragment(&vol, &sectorsNeeded));  /* Organize a free sector */
 
 #ifdef DEBUG_PRINT
-  DEBUG_PRINT("Debug: calling routine findFreeSector !!\n\t");
+    DEBUG_PRINT("Debug: calling routine findFreeSector !!\n\t");
 #endif
-  checkStatus(findFreeSector(&vol,sectorNo,&sectorAddress));
+    /* 找空闲扇区 */
+    checkStatus(findFreeSector(&vol, sectorNo, &sectorAddress));
 
-  if (replacementPage)
-    bamEntry |= REPLACEMENT_PAGE;
-  else
-    bamEntry |= DATA_SECTOR;
+    if (replacementPage)
+        bamEntry |= REPLACEMENT_PAGE;
+    else
+        bamEntry |= DATA_SECTOR;
 
-  status = markAllocMap(&vol,
+    status = markAllocMap(&vol,
             sectorAddress,
-            sectorNo < vol.directAddressingSectors ?
-              ALLOCATED_SECTOR : bamEntry,
+            sectorNo < vol.directAddressingSectors ? ALLOCATED_SECTOR : bamEntry,
             FALSE);
 
-  if (status == flOK && fromAddress)
-    status = vol.flash->write(vol.flash,
-            logical2Physical(&vol,sectorAddress),
-            fromAddress,
-            SECTOR_SIZE);
+    if (status == flOK && fromAddress)
+        status = vol.flash->write(vol.flash,
+                logical2Physical(&vol, sectorAddress),
+                fromAddress,
+                SECTOR_SIZE);
 
-  if (sectorNo < vol.directAddressingSectors && status == flOK)
-    status = markAllocMap(&vol,
-              sectorAddress,
-              bamEntry,
-              TRUE);
+    if (sectorNo < vol.directAddressingSectors && status == flOK)
+        status = markAllocMap(&vol,
+                  sectorAddress,
+                  bamEntry,
+                  TRUE);
 
-  if (status == flOK)
-    if (replacementPage) {
-      vol.replacementPageAddress = sectorAddress;
-      vol.replacementPageNo = sectorNo;
-    }
-    else
-      status = setVirtualMap(&vol,sectorNo,sectorAddress);
+    if (status == flOK)
+        if (replacementPage) {
+            vol.replacementPageAddress = sectorAddress;
+            vol.replacementPageNo = sectorNo;
+        }
+        else
+            status = setVirtualMap(&vol, sectorNo, sectorAddress);
 
-  if (status != flOK)
-    status = markAllocMap(&vol,sectorAddress,GARBAGE_SECTOR,TRUE);
+    if (status != flOK)
+        status = markAllocMap(&vol, sectorAddress, GARBAGE_SECTOR,TRUE);
 
 #ifdef DEBUG_PRINT
-  if (status != flOK)
-  DEBUG_PRINT("Debug: Bad status code at Allocate and Write sector !\n\t");
-  DEBUG_PRINT("Debug: MarkAllocMap returned %d !\n", status);
+    if (status != flOK)
+        DEBUG_PRINT("Debug: Bad status code at Allocate and Write sector !\n\t");
+    DEBUG_PRINT("Debug: MarkAllocMap returned %d !\n", status);
 #endif
-  return status;
+    return status;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*               c l o s e R e p l a c e m e n t P a g e        */
-/*                                    */
-/* Closes the replacement page by merging it with the primary page.    */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus closeReplacementPage(Flare vol)
+/**
+ ******************************************************************************
+ * @brief
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[out] None
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Closes the replacement page by merging it with the primary page.
+ ******************************************************************************
+ */
+static FLStatus
+closeReplacementPage(Flare vol)
 {
-  FLStatus status;
+    FLStatus status;
 
+    setupMapCache(&vol, vol.replacementPageNo);    /* read replacement page into map cache */
+    status = vol.flash->write(vol.flash,
+              logical2Physical(&vol, vol.replacementPageAddress),
+              mapCache,
+              SECTOR_SIZE);
+    if (status != flOK) {
+        /* Uh oh. Trouble. Let's replace this replacement page. */
+        LogicalSectorNo prevReplacementPageAddress = vol.replacementPageAddress;
 
-  setupMapCache(&vol,vol.replacementPageNo);    /* read replacement page into map cache */
-  status = vol.flash->write(vol.flash,
-              logical2Physical(&vol,vol.replacementPageAddress),
-              mapCache,SECTOR_SIZE);
-  if (status != flOK) {
-    /* Uh oh. Trouble. Let's replace this replacement page. */
-    LogicalSectorNo prevReplacementPageAddress = vol.replacementPageAddress;
+        checkStatus(allocateAndWriteSector(&vol, vol.replacementPageNo, mapCache, TRUE));
+        checkStatus(deleteLogicalSector(&vol, prevReplacementPageAddress));
+    }
 
-    checkStatus(allocateAndWriteSector(&vol,vol.replacementPageNo,mapCache,TRUE));
-    checkStatus(deleteLogicalSector(&vol,prevReplacementPageAddress));
-  }
-
-  checkStatus(setVirtualMap(&vol,vol.replacementPageNo,vol.replacementPageAddress));
-  checkStatus(markAllocMap(&vol,
+    checkStatus(setVirtualMap(&vol, vol.replacementPageNo, vol.replacementPageAddress));
+    checkStatus(markAllocMap(&vol,
                vol.replacementPageAddress,
                (((VirtualAddress) vol.replacementPageNo - vol.noOfPages)
                 << SECTOR_SIZE_BITS) | DATA_SECTOR,
                TRUE));
 
-  vol.replacementPageNo = UNASSIGNED_SECTOR;
+    vol.replacementPageNo = UNASSIGNED_SECTOR;
 
-  return flOK;
+    return flOK;
 }
 
-
-/*----------------------------------------------------------------------*/
-/*                    s e t V i r t u a l M a p            */
-/*                                    */
-/* Changes an entry in the virtual map                    */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*    sectorNo    : Virtual sector no. whose entry is changed.    */
-/*    newAddress    : Logical sector no. to assign in Virtual Map.    */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus setVirtualMap(Flare vol,
-                VirtualSectorNo sectorNo,
-                LogicalSectorNo newAddress)
+/**
+ ******************************************************************************
+ * @brief 设置虚拟映射表
+ * @param[in]  vol          : Pointer identifying drive
+ * @param[in]  sectorNo     : Virtual sector no. whose entry is changed.
+ * @param[in]  newAddress   : Logical sector no. to assign in Virtual Map.
+ *
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Changes an entry in the virtual map
+ ******************************************************************************
+ */
+static FLStatus
+setVirtualMap(Flare vol,
+        VirtualSectorNo sectorNo,
+        LogicalSectorNo newAddress)
 {
-  unsigned pageNo;
-  int sectorInPage;
-  uint32_t virtualMapEntryAddress;
-  uint32_t addressToWrite;
-  LogicalAddress oldAddress;
-  LogicalSectorNo updatedPage;
+    unsigned pageNo;
+    int sectorInPage;
+    uint32_t virtualMapEntryAddress;
+    uint32_t addressToWrite;
+    LogicalAddress oldAddress;
+    LogicalSectorNo updatedPage;
 
-  vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
+    vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
 
-  if (sectorNo < vol.directAddressingSectors) {
-    checkStatus(deleteLogicalSector(&vol,vol.pageTable[sectorNo]));
-    vol.pageTable[sectorNo] = newAddress;
-    return flOK;
-  }
-  sectorNo -= vol.noOfPages;
-
-  pageNo = sectorNo >> (PAGE_SIZE_BITS - SECTOR_SIZE_BITS);
-  sectorInPage = (int) (sectorNo) % ADDRESSES_PER_SECTOR;
-  updatedPage = vol.pageTable[pageNo];
-  virtualMapEntryAddress = logical2Physical(&vol,updatedPage) +
-                 sectorInPage * sizeof(LogicalAddress);
-  oldAddress = *(uint32_t  *)
-    flashMap(&vol,virtualMapEntryAddress,sizeof(LogicalAddress));
-
-  if (oldAddress == DELETED_ADDRESS && vol.replacementPageNo == pageNo) {
-    updatedPage = vol.replacementPageAddress;
-    virtualMapEntryAddress = logical2Physical(&vol,updatedPage) +
-                   sectorInPage * sizeof(LogicalAddress);
-    oldAddress = *(uint32_t  *)
-      flashMap(&vol,virtualMapEntryAddress,sizeof(LogicalAddress));
-  }
-
-  if (newAddress == DELETED_ADDRESS && ((unsigned long)oldAddress == UNASSIGNED_ADDRESS))
-    return flOK;
-
-  addressToWrite = (LogicalAddress) newAddress << SECTOR_SIZE_BITS;
-  if (cannotWriteOver(addressToWrite,oldAddress)) {
-    FLStatus status;
-
-    if (pageNo != vol.replacementPageNo ||
-    updatedPage == vol.replacementPageAddress) {
-      if (vol.replacementPageNo != UNASSIGNED_SECTOR)
-    checkStatus(closeReplacementPage(&vol));
-      checkStatus(allocateAndWriteSector(&vol,pageNo,NULL,TRUE));
+    if (sectorNo < vol.directAddressingSectors) {
+        checkStatus(deleteLogicalSector(&vol, vol.pageTable[sectorNo]));
+        vol.pageTable[sectorNo] = newAddress;
+        return flOK;
     }
+    sectorNo -= vol.noOfPages;
 
-    status = vol.flash->write(vol.flash,
-            logical2Physical(&vol,vol.replacementPageAddress) +
-                      sectorInPage * sizeof(LogicalAddress),
-            &addressToWrite,
-            sizeof addressToWrite);
-    if (status != flOK) {
-      closeReplacementPage(&vol);
-                /* we may get a write-error because a
-                   previous cache update did not complete. */
-      return status;
-    }
-    addressToWrite = DELETED_ADDRESS;
+    pageNo = sectorNo >> (PAGE_SIZE_BITS - SECTOR_SIZE_BITS);
+    sectorInPage = (int) (sectorNo) % ADDRESSES_PER_SECTOR;
     updatedPage = vol.pageTable[pageNo];
-  }
-  checkStatus(vol.flash->write(vol.flash,
-             logical2Physical(&vol,updatedPage) +
-                   sectorInPage * sizeof(LogicalAddress),
-             &addressToWrite,
-             sizeof(addressToWrite)));
+    virtualMapEntryAddress = logical2Physical(&vol,updatedPage) +
+            sectorInPage * sizeof(LogicalAddress);
+    oldAddress = *(uint32_t  *)
+    flashMap(&vol, virtualMapEntryAddress, sizeof(LogicalAddress));
 
-  if (buffer.sectorNo == pageNo && buffer.owner == &vol)
-    mapCache[sectorInPage] = (LogicalAddress) newAddress << SECTOR_SIZE_BITS;
+    if (oldAddress == DELETED_ADDRESS && vol.replacementPageNo == pageNo) {
+        updatedPage = vol.replacementPageAddress;
+        virtualMapEntryAddress = logical2Physical(&vol, updatedPage) +
+                sectorInPage * sizeof(LogicalAddress);
+        oldAddress = *(uint32_t *)flashMap(&vol, virtualMapEntryAddress, sizeof(LogicalAddress));
+    }
 
+    if (newAddress == DELETED_ADDRESS && ((unsigned long)oldAddress == UNASSIGNED_ADDRESS))
+        return flOK;
 
-  return deleteLogicalSector(&vol,(LogicalSectorNo) (oldAddress >> SECTOR_SIZE_BITS));
+    addressToWrite = (LogicalAddress) newAddress << SECTOR_SIZE_BITS;
+    if (cannotWriteOver(addressToWrite, oldAddress)) {
+        FLStatus status;
+
+        if (pageNo != vol.replacementPageNo || updatedPage == vol.replacementPageAddress) {
+            if (vol.replacementPageNo != UNASSIGNED_SECTOR)
+                checkStatus(closeReplacementPage(&vol));
+        checkStatus(allocateAndWriteSector(&vol,pageNo,NULL,TRUE));
+        }
+
+        status = vol.flash->write(vol.flash,
+                logical2Physical(&vol,vol.replacementPageAddress) +
+                          sectorInPage * sizeof(LogicalAddress),
+                &addressToWrite,
+                sizeof addressToWrite);
+        if (status != flOK) {
+            closeReplacementPage(&vol);
+            /* we may get a write-error because a
+               previous cache update did not complete. */
+            return status;
+        }
+        addressToWrite = DELETED_ADDRESS;
+        updatedPage = vol.pageTable[pageNo];
+    }
+    checkStatus(vol.flash->write(vol.flash,
+            logical2Physical(&vol,updatedPage) + sectorInPage * sizeof(LogicalAddress),
+            &addressToWrite,
+            sizeof(addressToWrite)));
+
+    if (buffer.sectorNo == pageNo && buffer.owner == &vol)
+        mapCache[sectorInPage] = (LogicalAddress) newAddress << SECTOR_SIZE_BITS;
+
+    return deleteLogicalSector(&vol,(LogicalSectorNo) (oldAddress >> SECTOR_SIZE_BITS));
 }
 
-
-/*----------------------------------------------------------------------*/
-/*               c h e c k F o r W r i t e I n p l a c e        */
-/*                                    */
-/* Checks possibility for writing Flash data inplace.            */
-/*                                    */
-/* Parameters:                                                          */
-/*    newData        : New data to write.                */
-/*    oldData        : Old data at this location.            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    < 0    =>    Writing inplace not possible            */
-/*    >= 0    =>    Writing inplace is possible. Value indicates    */
-/*            how many bytes at the start of data are        */
-/*            identical and may be skipped.            */
-/*----------------------------------------------------------------------*/
-
-static int checkForWriteInplace(long  *newData,
-                long  *oldData)
+/**
+ ******************************************************************************
+ * @brief 检查是否存在 0变1的情况
+ * @param[in]  newData        : New data to write.
+ * @param[in]  oldData        : Old data at this location.
+ * @retval
+ *      < 0    =>    Writing inplace not possible
+ *      >= 0    =>    Writing inplace is possible. Value indicates
+ *      how many bytes at the start of data are identical and may be skipped.
+ * @details
+ *
+ * @note
+ * Checks possibility for writing Flash data inplace.
+ ******************************************************************************
+ */
+static int
+checkForWriteInplace(long  *newData,
+        long  *oldData)
 {
-  int i;
+    int i;
+    int skipBytes = 0;
+    FLBoolean stillSame = TRUE;
 
-  int skipBytes = 0;
-  FLBoolean stillSame = TRUE;
+    for (i = SECTOR_SIZE / sizeof(*newData); i > 0; i--, newData++, oldData++) {
+        if (cannotWriteOver(*newData,*oldData))
+            return -1;
+        if (stillSame && *newData == *oldData)
+            skipBytes += sizeof *newData;
+        else
+            stillSame = FALSE;
+    }
 
-  for (i = SECTOR_SIZE / sizeof(*newData); i > 0; i--, newData++, oldData++) {
-    if (cannotWriteOver(*newData,*oldData))
-      return -1;
-    if (stillSame && *newData == *oldData)
-      skipBytes += sizeof *newData;
-    else
-      stillSame = FALSE;
-  }
-
-  return skipBytes;
+    return skipBytes;
 }
 
-
-
-
-
-
-/*----------------------------------------------------------------------*/
-/*                        i n i t F T L                */
-/*                                    */
-/* Initializes essential volume data as a preparation for mount or    */
-/* format.                                */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus initFTL(Flare vol)
+/**
+ ******************************************************************************
+ * @brief      初始化FTL
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[out] None
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Initializes essential volume data as a preparation for mount or format.
+ ******************************************************************************
+ */
+static FLStatus
+initFTL(Flare vol)
 {
-  long int size = 1;
+    long int size = 1;
 
-  memset(&vol,0,sizeof(Flare));
+    memset(&vol, 0, sizeof(Flare));
 
-  for (vol.erasableBlockSizeBits = 0; size < FLASH_ERASE_BLOCK_SIZE;
-       vol.erasableBlockSizeBits++, size <<= 1);
+    for (vol.erasableBlockSizeBits = 0; size < FLASH_ERASE_BLOCK_SIZE;
+            vol.erasableBlockSizeBits++, size <<= 1);
 
-  vol.unitSizeBits = UNIT_SIZE_BITS;        /* At least 64 KB */
-  vol.noOfUnits = MAX_UNIT_COUNT;
-  vol.unitOffsetMask = (1L << vol.unitSizeBits) - 1;
-  vol.sectorsPerUnit = 1 << (vol.unitSizeBits - SECTOR_SIZE_BITS);
-  vol.bamOffset = sizeof(UnitHeader);
-  vol.unitHeaderSectors = ((allocEntryOffset(&vol,vol.sectorsPerUnit) - 1) >>
-                    SECTOR_SIZE_BITS) + 1;
+    vol.unitSizeBits = UNIT_SIZE_BITS;        /* At least 64 KB */
+    vol.noOfUnits = MAX_UNIT_COUNT;
+    vol.unitOffsetMask = (1L << vol.unitSizeBits) - 1;
+    vol.sectorsPerUnit = 1 << (vol.unitSizeBits - SECTOR_SIZE_BITS);
+    vol.bamOffset = sizeof(UnitHeader);
+    vol.unitHeaderSectors = ((allocEntryOffset(&vol,vol.sectorsPerUnit) - 1) >> SECTOR_SIZE_BITS) + 1;
 
-  vol.transferUnit = NULL;
-  vol.replacementPageNo = UNASSIGNED_SECTOR;
-  vol.badFormat = TRUE;    /* until mount completes */
-  vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
+    vol.transferUnit = NULL;
+    vol.replacementPageNo = UNASSIGNED_SECTOR;
+    vol.badFormat = TRUE;    /* until mount completes */
+    vol.mapBuffer.mappedSectorNo = UNASSIGNED_SECTOR;
 
-  vol.currWearLevelingInfo = 0;
-  vol.maxEraseCount = 0;
-  vol.mapBuffer.remapped = TRUE;
+    vol.currWearLevelingInfo = 0;
+    vol.maxEraseCount = 0;
+    vol.mapBuffer.remapped = TRUE;
 
-
-  return flOK;
+    return flOK;
 }
 
-
-
-/*----------------------------------------------------------------------*/
-/*                      i n i t T a b l e s                */
-/*                                    */
-/* Allocates and initializes the dynamic volume table, including the    */
-/* unit tables and secondary virtual map.                */
-/*                                    */
-/* Parameters:                                                          */
-/*    vol        : Pointer identifying drive            */
-/*                                                                      */
-/* Returns:                                                             */
-/*    FLStatus    : 0 on success, failed otherwise        */
-/*----------------------------------------------------------------------*/
-
-static FLStatus initTables(Flare vol)
+/**
+ ******************************************************************************
+ * @brief      初始化tables 分配映射表内存
+ * @param[in]  vol        : Pointer identifying drive
+ * @param[out] None
+ * @retval     FLStatus    : 0 on success, failed otherwise
+ *
+ * @details
+ *
+ * @note
+ * Allocates and initializes the dynamic volume table, including the
+ * unit tables and secondary virtual map.
+ ******************************************************************************
+ */
+static FLStatus
+initTables(Flare vol)
 {
-  VirtualSectorNo iSector;
-  UnitNo iUnit;
+    VirtualSectorNo iSector;
+    UnitNo iUnit;
 
-  /* Allocate the conversion tables */
+    /* Allocate the conversion tables */
+    char *heapPtr;
 
-  char *heapPtr;
+    heapPtr = vol.heap;
+    vol.physicalUnits = (Unit *) heapPtr;
+    heapPtr += vol.noOfUnits * sizeof(Unit);
 
-  heapPtr = vol.heap;
-  vol.physicalUnits = (Unit *) heapPtr;
-  heapPtr += vol.noOfUnits * sizeof(Unit);
+    vol.logicalUnits = (UnitPtr *) heapPtr;
+    heapPtr += vol.noOfUnits * sizeof(UnitPtr);
 
-  vol.logicalUnits = (UnitPtr *) heapPtr;
-  heapPtr += vol.noOfUnits * sizeof(UnitPtr);
+    vol.pageTable = (LogicalSectorNo *) heapPtr;
+    heapPtr += vol.directAddressingSectors * sizeof(LogicalSectorNo);
+    if (heapPtr > vol.heap + sizeof(vol.heap))
+        return flNotEnoughMemory;
 
-  vol.pageTable = (LogicalSectorNo *) heapPtr;
-  heapPtr += vol.directAddressingSectors * sizeof(LogicalSectorNo);
-  if (heapPtr > vol.heap + sizeof(vol.heap))
-    return flNotEnoughMemory;
-
-  vol.volBuffer = &s_volBuffers;
+    vol.volBuffer = &s_volBuffers;
 
 
-  buffer.sectorNo = UNASSIGNED_SECTOR;
+    buffer.sectorNo = UNASSIGNED_SECTOR;
 
-  for (iSector = 0; iSector < vol.noOfPages; iSector++)
-    vol.pageTable[iSector] = UNASSIGNED_SECTOR;
+    for (iSector = 0; iSector < vol.noOfPages; iSector++)
+        vol.pageTable[iSector] = UNASSIGNED_SECTOR;
 
-  for (iUnit = 0; iUnit < vol.noOfUnits; iUnit++)
-    vol.logicalUnits[iUnit] = NULL;
+    for (iUnit = 0; iUnit < vol.noOfUnits; iUnit++)
+        vol.logicalUnits[iUnit] = NULL;
 
-  return flOK;
+    return flOK;
 }
 
 
