@@ -36,8 +36,8 @@ Section: Macro Definitions
 #define FEED_DOG_CYCLE        1u
 
 /* °æ±¾ */
-#define BOARD_VERSON_0_1
-//#define BOARD_VERSON_0_2
+//#define BOARD_VERSON_0_1
+#define BOARD_VERSON_0_2
 
 
 #endif /*CFG_H */

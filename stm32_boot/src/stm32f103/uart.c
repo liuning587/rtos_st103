@@ -99,6 +99,21 @@ void uart_init(void) {
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 #endif
+#ifdef BOARD_VERSON_0_2
+    // UART IOø⁄œﬂ…Ë÷√
+
+    /* Configure USART0 Tx as alternate function push-pull  */
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    /* Configure USART0 Rx as input floating */
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+#endif
     USART_InitTypeDef USART_InitStructure;
 
     USART_InitStructure.USART_BaudRate = 115200;

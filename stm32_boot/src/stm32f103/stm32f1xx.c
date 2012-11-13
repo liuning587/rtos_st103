@@ -48,7 +48,12 @@ extern void hw_init(void) {
     RCC->APB2ENR |= RCC_APB2Periph_GPIOA;
 
     /* Enable UART clock */
+#ifdef BOARD_VERSON_0_1
     RCC->APB1ENR |= RCC_APB1Periph_USART2;
+#endif
+#ifdef BOARD_VERSON_0_2
+    RCC->APB2ENR |= RCC_APB2Periph_USART1;
+#endif
 
     // ≈‰÷√UART
     uart_init();
