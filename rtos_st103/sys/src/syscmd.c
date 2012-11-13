@@ -417,7 +417,6 @@ do_show_osecb(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
     printf("MUTEX            %d\n", num[OS_EVENT_TYPE_MUTEX]);
     printf("FLAG             %d\n", num[OS_EVENT_TYPE_FLAG]);
 
-
     return (0);
 }
 SHELL_CMD(
@@ -425,11 +424,4 @@ SHELL_CMD(
     "osecb \r\t\t\t\t show os event control blocks info\n"
 );
 
-/*------------------------------------------------------------------------------
-Section: Function Definitions
-------------------------------------------------------------------------------*/
-
-
-/******************************End of sxos.c ******************************/
-
-
+/*----------------------------End of syscmd.c--------------------------------*/

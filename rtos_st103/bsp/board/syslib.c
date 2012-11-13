@@ -61,13 +61,13 @@ void sysHwInit0(void)
  */
 void bsp_putchar(char_t c)
 {
-    //USART_SendData(USART2, (uint16_t)c);
+    //USART_SendData(USART1, (uint16_t)c);
     /* Place your implementation of fputc here */
     /* e.g. write a character to the USART */
-    USART_SendData(USART2, (uint8_t) c);
+    USART_SendData(USART1, (uint8_t) c);
 
     /* Loop until the end of transmission */
-    while (USART_GetFlagStatus(USART2, USART_FLAG_TC) == RESET)
+    while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET)
     {}
 }
 /**
@@ -84,9 +84,9 @@ void bsp_putchar(char_t c)
  */
 int32_t bsp_getchar(void)
 {
-    if (USART_GetFlagStatus(USART2, USART_FLAG_RXNE) != RESET)
+    if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) != RESET)
     {
-        return (int32_t)USART_ReceiveData(USART2);
+        return (int32_t)USART_ReceiveData(USART1);
     }
     return 0;
 }
