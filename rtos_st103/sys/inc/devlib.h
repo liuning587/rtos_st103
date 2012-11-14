@@ -24,11 +24,11 @@ typedef struct fileopt
     status_t  (*release)(struct fileopt* dev);
     int32_t   (*open)   (struct fileopt* dev, uint16_t oflag);
     status_t  (*close)  (struct fileopt* dev);
-    size_t    (*read)   (struct fileopt* dev, long pos, void *buffer, size_t size);
-    size_t    (*write)  (struct fileopt* dev, long pos, const void *buffer, size_t size);
+    size_t    (*read)   (struct fileopt* dev, int32_t pos, void *buffer, size_t size);
+    size_t    (*write)  (struct fileopt* dev, int32_t pos, const void *buffer, size_t size);
     int32_t   (*ioctl)  (struct fileopt* dev, uint32_t cmd, void *args);
-    status_t   (*lock)   (struct fileopt* dev);   /**< ¶ÁÐ´Ëø */
-    status_t   (*unlock) (struct fileopt* dev);   /**< ¶ÁÐ´Ëø */
+    status_t  (*lock)   (struct fileopt* dev);   /**< ¶ÁÐ´Ëø */
+    status_t  (*unlock) (struct fileopt* dev);   /**< ¶ÁÐ´Ëø */
 } fileopt_t;
 
 typedef struct device
