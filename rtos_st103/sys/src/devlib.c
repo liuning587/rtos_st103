@@ -242,7 +242,12 @@ dev_open(const char_t* pname, int32_t flags)
         if (strncmp(pnode->name, pname, sizeof(pnode->name)) == 0)
         {
             /* 找到对应节点 */
-            return find_free_fd(pnode);
+            int32_t fd = find_free_fd(pnode);
+            if ((fd > 0) && (pnode->fileopt.open != 0))
+            {
+                pnode->fileopt.open(&pnode->fileopt, flags);    /* 执行open */
+            }
+            return fd;
         }
         pnode++;    /* next node */
     }
@@ -302,6 +307,11 @@ dev_read(int32_t fd, void* buf, int32_t count)
         return -1;
     }
 
+    if (the_opend_devs[realfd]->fileopt.read == NULL)
+    {
+        return -1;
+    }
+
     if (the_opend_devs[realfd]->fileopt.lock != NULL)
     {
         if (OK != the_opend_devs[realfd]->fileopt.lock(&the_opend_devs[realfd]->fileopt))
@@ -310,6 +320,7 @@ dev_read(int32_t fd, void* buf, int32_t count)
         }
 
     }
+
     size = the_opend_devs[realfd]->fileopt.read(&the_opend_devs[realfd]->fileopt,
             the_opend_devs[realfd]->offset,
             buf,
@@ -343,6 +354,11 @@ dev_write(int32_t fd, const void* buf, int32_t count)
     int32_t realfd = fd - 1;    /* 这里取得真实的fd */
 
     if (FALSE == is_fd_valid(realfd))
+    {
+        return -1;
+    }
+
+    if (the_opend_devs[realfd]->fileopt.write == NULL)
     {
         return -1;
     }
@@ -389,6 +405,12 @@ dev_ioctl(int32_t fd, uint32_t cmd, void *args)
     {
         return -1;
     }
+
+    if (the_opend_devs[realfd]->fileopt.ioctl == NULL)
+    {
+        return -1;
+    }
+
     //ioctl 不上锁吗？
     return the_opend_devs[realfd]->fileopt.ioctl(&the_opend_devs[realfd]->fileopt,
             cmd,
@@ -416,9 +438,13 @@ dev_close(int32_t fd)
     {
         return -1;
     }
-    if (OK != the_opend_devs[realfd]->fileopt.close(&the_opend_devs[realfd]->fileopt))
+
+    if (the_opend_devs[realfd]->fileopt.close != NULL)
     {
-        return -1;
+        if (OK != the_opend_devs[realfd]->fileopt.close(&the_opend_devs[realfd]->fileopt))
+        {
+            return -1;
+        }
     }
     the_opend_devs[realfd] = NULL;  /* release fd */
 

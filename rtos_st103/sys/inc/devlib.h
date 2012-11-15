@@ -36,6 +36,7 @@ typedef struct device
     struct device*  next;
     char_t name[MAX_DEVICE_NAME];   /**< 设备名 */
     int32_t offset;                 /**< 读写偏移地址 */
+    int32_t usrs;                   /**< 设备打开次数 */
     struct fileopt fileopt;         /**< 设备操作方法 */
 } device_t;
 
