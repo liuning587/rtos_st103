@@ -57,6 +57,8 @@ signed int puts(const char *pStr)
 
 static void printchar(char **str, int c)
 {
+    extern int putchar(int c);
+
     if (str) {
         **str = c;
         ++(*str);
@@ -143,11 +145,10 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
     return pc + prints (out, s, width, pad);
 }
 
-static int print(char **out, int *varg)
+static int print( char **out, const char *format, va_list args )
 {
     register int width, pad;
     register int pc = 0;
-    register char *format = (char *)(*varg++);
     char scr[2];
 
     for (; *format != 0; ++format) {
@@ -169,29 +170,39 @@ static int print(char **out, int *varg)
                 width += *format - '0';
             }
             if( *format == 's' ) {
-                register char *s = *((char **)varg++);
+                register char *s = (char *)va_arg( args, int );
                 pc += prints (out, s?s:"(null)", width, pad);
                 continue;
             }
             if( *format == 'd' ) {
-                pc += printi (out, *varg++, 10, 1, width, pad, 'a');
+                pc += printi (out, va_arg( args, int ), 10, 1, width, pad, 'a');
+                continue;
+            }
+            if( *format == 'f' ) {
+                double a = va_arg( args, double );
+                pc += printi (out, (int)a, 10, 1, width, pad, 'a');
+                scr[0] = '.';
+                scr[1] = '\0';
+                pc += prints (out, scr, width, pad);
+                pc += printi (out, (int)((int)(a*1000000.0) % 1000000), 10, 1, width, pad, 'a');
+
                 continue;
             }
             if( *format == 'x' ) {
-                pc += printi (out, *varg++, 16, 0, width, pad, 'a');
+                pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'a');
                 continue;
             }
             if( *format == 'X' ) {
-                pc += printi (out, *varg++, 16, 0, width, pad, 'A');
+                pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'A');
                 continue;
             }
             if( *format == 'u' ) {
-                pc += printi (out, *varg++, 10, 0, width, pad, 'a');
+                pc += printi (out, va_arg( args, int ), 10, 0, width, pad, 'a');
                 continue;
             }
             if( *format == 'c' ) {
                 /* char are converted to int then pushed on the stack */
-                scr[0] = *varg++;
+                scr[0] = (char)va_arg( args, int );
                 scr[1] = '\0';
                 pc += prints (out, scr, width, pad);
                 continue;
@@ -204,20 +215,35 @@ static int print(char **out, int *varg)
         }
     }
     if (out) **out = '\0';
+    va_end( args );
     return pc;
 }
 
-/* assuming sizeof(void *) == sizeof(int) */
-
 int printf(const char *format, ...)
 {
-    register int *varg = (int *)(&format);
-    return print(0, varg);
+        va_list args;
+
+        va_start( args, format );
+        return print( 0, format, args );
 }
 
 int sprintf(char *out, const char *format, ...)
 {
-    register int *varg = (int *)(&format);
-    return print(&out, varg);
+        va_list args;
+
+        va_start( args, format );
+        return print( &out, format, args );
 }
+
+
+int snprintf( char *buf, unsigned int count, const char *format, ... )
+{
+        va_list args;
+
+        ( void ) count;
+
+        va_start( args, format );
+        return print( &buf, format, args );
+}
+
 /* --------------------------------- End Of File ----------------------------*/
