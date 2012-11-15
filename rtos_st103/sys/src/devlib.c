@@ -2,7 +2,7 @@
  ******************************************************************************
  * @file       devlib.c
  * @version    V1.1.4
- * @brief      设备驱动操作 todo:节点操作进入临界区
+ * @brief      设备驱动操作 todo: 1. 节点操作进入临界区 2. 重复打开关闭
  * @details    This file including all API functions's implement of dps.
  * @copy       Copyrigth(C)
  *
@@ -39,7 +39,7 @@ find_free_fd(device_t* pnode)
         {
             the_opend_devs[i] = pnode;
             Dprintf("find free fd node\n");
-            return i + 1;
+            return i + 1;   /* 注意返回句柄加1防止句柄 */
         }
     }
     Dprintf("can not find free fd node\n");
@@ -262,15 +262,15 @@ dev_open(const char_t* pname, int32_t flags)
  ******************************************************************************
  */
 static bool_e
-is_fd_valid(int32_t fd)
+is_fd_valid(int32_t realfd)
 {
-    if (fd - 1 >= MAX_OPEN_NUM)
+    if (realfd >= MAX_OPEN_NUM)
     {
         Dprintf("fd is out of range!\n");
         return FALSE;
     }
 
-    if (the_opend_devs[fd] == NULL)
+    if (the_opend_devs[realfd] == NULL)
     {
         Dprintf("fd is not opend!\n");
         return FALSE;
@@ -295,27 +295,28 @@ int32_t
 dev_read(int32_t fd, void* buf, int32_t count)
 {
     int32_t size = -1;
+    int32_t realfd = fd - 1;    /* 这里取得真实的fd */
 
-    if (FALSE == is_fd_valid(fd))
+    if (FALSE == is_fd_valid(realfd))
     {
         return -1;
     }
 
-    if (the_opend_devs[fd]->fileopt.lock != NULL)
+    if (the_opend_devs[realfd]->fileopt.lock != NULL)
     {
-        if (OK != the_opend_devs[fd]->fileopt.lock(&the_opend_devs[fd]->fileopt))
+        if (OK != the_opend_devs[realfd]->fileopt.lock(&the_opend_devs[realfd]->fileopt))
         {
             return -1;
         }
 
     }
-    size = the_opend_devs[fd]->fileopt.read(&the_opend_devs[fd]->fileopt,
-            the_opend_devs[fd]->offset,
+    size = the_opend_devs[realfd]->fileopt.read(&the_opend_devs[realfd]->fileopt,
+            the_opend_devs[realfd]->offset,
             buf,
             count);
-    if (the_opend_devs[fd]->fileopt.unlock != NULL)
+    if (the_opend_devs[realfd]->fileopt.unlock != NULL)
     {
-        if (OK != the_opend_devs[fd]->fileopt.unlock(&the_opend_devs[fd]->fileopt))
+        if (OK != the_opend_devs[realfd]->fileopt.unlock(&the_opend_devs[realfd]->fileopt))
         {
             return -1;
         }
@@ -339,27 +340,28 @@ int32_t
 dev_write(int32_t fd, const void* buf, int32_t count)
 {
     int32_t size = -1;
+    int32_t realfd = fd - 1;    /* 这里取得真实的fd */
 
-    if (FALSE == is_fd_valid(fd))
+    if (FALSE == is_fd_valid(realfd))
     {
         return -1;
     }
 
-    if (the_opend_devs[fd]->fileopt.lock != NULL)
+    if (the_opend_devs[realfd]->fileopt.lock != NULL)
     {
-        if (OK != the_opend_devs[fd]->fileopt.lock(&the_opend_devs[fd]->fileopt))
+        if (OK != the_opend_devs[realfd]->fileopt.lock(&the_opend_devs[realfd]->fileopt))
         {
             return -1;
         }
 
     }
-    size = the_opend_devs[fd]->fileopt.write(&the_opend_devs[fd]->fileopt,
-            the_opend_devs[fd]->offset,
+    size = the_opend_devs[realfd]->fileopt.write(&the_opend_devs[realfd]->fileopt,
+            the_opend_devs[realfd]->offset,
             buf,
             count);
-    if (the_opend_devs[fd]->fileopt.unlock != NULL)
+    if (the_opend_devs[realfd]->fileopt.unlock != NULL)
     {
-        if (OK != the_opend_devs[fd]->fileopt.unlock(&the_opend_devs[fd]->fileopt))
+        if (OK != the_opend_devs[realfd]->fileopt.unlock(&the_opend_devs[realfd]->fileopt))
         {
             return -1;
         }
@@ -382,12 +384,13 @@ dev_write(int32_t fd, const void* buf, int32_t count)
 int32_t
 dev_ioctl(int32_t fd, uint32_t cmd, void *args)
 {
-    if (FALSE == is_fd_valid(fd))
+    int32_t realfd = fd - 1;    /* 这里取得真实的fd */
+    if (FALSE == is_fd_valid(realfd))
     {
         return -1;
     }
     //ioctl 不上锁吗？
-    return the_opend_devs[fd]->fileopt.ioctl(&the_opend_devs[fd]->fileopt,
+    return the_opend_devs[realfd]->fileopt.ioctl(&the_opend_devs[realfd]->fileopt,
             cmd,
             args);
 }
@@ -407,15 +410,17 @@ dev_ioctl(int32_t fd, uint32_t cmd, void *args)
 int32_t
 dev_close(int32_t fd)
 {
-    if (FALSE == is_fd_valid(fd))
+    int32_t realfd = fd - 1;    /* 这里取得真实的fd */
+
+    if (FALSE == is_fd_valid(realfd))
     {
         return -1;
     }
-    if (OK != the_opend_devs[fd]->fileopt.close(&the_opend_devs[fd]->fileopt))
+    if (OK != the_opend_devs[realfd]->fileopt.close(&the_opend_devs[realfd]->fileopt))
     {
         return -1;
     }
-    the_opend_devs[fd] = NULL;  /* release fd */
+    the_opend_devs[realfd] = NULL;  /* release fd */
 
     return 1;
 }
