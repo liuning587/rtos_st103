@@ -177,6 +177,25 @@ static int print(char **out, int *varg)
                 pc += printi (out, *varg++, 10, 1, width, pad, 'a');
                 continue;
             }
+            if(*format == 'f') {
+#if 1   //NEWLIB浮点打印
+                char *cptr = (char *) varg++;  //lint !e740 !e826  convert to double pointer
+                uint caddr = (uint) cptr ;
+                if ((caddr & 0xF) != 0) {
+                   cptr += 4 ;
+                }
+                double dbl = *(double *) cptr ;  //lint !e740 !e826  convert to double pointer
+#else   //非NEWLIB
+                double dbl = *(double *) varg++ ;  //lint !e740 !e826  convert to double pointer
+#endif
+                pc += printi (out, (int)dbl, 10, 1, width, pad, 'a');
+                scr[0] = '.';
+                scr[1] = '\0';
+                pc += prints (out, scr, width, pad);
+                pc += printi (out, (int)((int)(dbl*1000000.0) % 1000000), 10, 1, width, pad, 'a');
+                varg++; //double需要加两次
+                continue;
+            }
             if( *format == 'x' ) {
                 pc += printi (out, *varg++, 16, 0, width, pad, 'a');
                 continue;
