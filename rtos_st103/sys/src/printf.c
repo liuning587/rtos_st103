@@ -178,7 +178,7 @@ static int print(char **out, int *varg)
                 continue;
             }
             if(*format == 'f') {
-#if 1   //NEWLIB浮点打印
+#if 1   //NEWLIB浮点打印,支持stm32 lm3s测试不过可能需要IQmath库
                 char *cptr = (char *) varg++;  //lint !e740 !e826  convert to double pointer
                 uint caddr = (uint) cptr ;
                 if ((caddr & 0xF) != 0) {
