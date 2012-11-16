@@ -8,8 +8,6 @@
  *
  ******************************************************************************
  */
-#include <stdio.h>
-#include <stdarg.h>
 #include <types.h>
 
 #ifdef putchar
@@ -180,8 +178,7 @@ static int print(char **out, int *varg)
             if(*format == 'f') {
 #if 1   //NEWLIB浮点打印,支持stm32 lm3s测试不过可能需要IQmath库
                 char *cptr = (char *) varg++;  //lint !e740 !e826  convert to double pointer
-                uint caddr = (uint) cptr ;
-                if ((caddr & 0xF) != 0) {
+                if (((unsigned int) cptr & 0xF) != 0) {
                    cptr += 4 ;
                 }
                 double dbl = *(double *) cptr ;  //lint !e740 !e826  convert to double pointer
