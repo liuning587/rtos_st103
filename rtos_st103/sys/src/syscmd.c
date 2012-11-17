@@ -19,6 +19,7 @@ Section: Includes
 #include <sched.h>
 #include <time.h>
 #include <shell.h>
+#include <sys_gpio.h>
 
 /*-----------------------------------------------------------------------------
  Section: Constant Definitions
@@ -314,13 +315,13 @@ uint32_t do_iow(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
        }
 
        value = atoi((const char *)argv[2]);
-       if (0 == value)
+       if (0 != value && 1 != value)
        {
            printf ("Usage:\r\n");
            printf ("%s\r\n", cmdtp->usage);
            return 1;
        }
-       //gpio_write(io,value);
+       sys_gpio_write(io, value);
 
     return 0;
 }
@@ -349,7 +350,7 @@ uint32_t do_ior(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
         return 1;
     }
 
-   // printf("value : %d\n",gpio_read(io));
+    printf("value : %d\n", sys_gpio_read(io));
 
     return 0;
 }

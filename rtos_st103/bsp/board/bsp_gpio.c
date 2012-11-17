@@ -14,14 +14,14 @@ typedef struct
 /*输入IO的对应关系表*/
 static const io_map_t the_inout_iomap[] =
 {
-    {IO_LED0, IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_0},
-    {IO_LED1, IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_1},
-    {IO_LED2, IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_8},
-    {IO_LED3, IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_9},
-    {IO_KEY0, IO_INPUT, GPIOB_BASE, GPIO_Pin_0},
-    {IO_KEY1, IO_INPUT, GPIOB_BASE, GPIO_Pin_1},
-    {IO_KEY2, IO_INPUT, GPIOA_BASE, GPIO_Pin_8},
-    {IO_KEY3, IO_INPUT, GPIOA_BASE, GPIO_Pin_13},
+    {IO_LED0,   IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_0},
+    {IO_LED1,   IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_1},
+    {IO_LED2,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_8},
+    {IO_LED3,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_9},
+    {IO_KEY0,   IO_INPUT,   GPIOB_BASE, GPIO_Pin_0},
+    {IO_KEY1,   IO_INPUT,   GPIOB_BASE, GPIO_Pin_1},
+    {IO_KEY2,   IO_INPUT,   GPIOA_BASE, GPIO_Pin_8},
+    {IO_KEY3,   IO_INPUT,   GPIOA_BASE, GPIO_Pin_13},
     {IO_LCD_AK, IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_5}
 };
 static status_t
@@ -101,27 +101,31 @@ bsp_gpio_read (int32_t io_no)
 void
 bsp_gpio_init(void)
 {
-#if 0
+
     int32_t i;
 
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    //SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+
+    /* Enable GPIOA, GPIOB and AFIO clocks */
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB |
+                           RCC_APB2Periph_GPIOC| RCC_APB2Periph_AFIO, ENABLE);
     for (i = 0; i < ARRAY_SIZE(the_inout_iomap); i++)
     {
         if (the_inout_iomap[i].mode == IO_INPUT)
         {
-            //GPIODirModeSet(the_inout_iomap[i].gpiobase, the_inout_iomap[i].pinno, GPIO_DIR_MODE_IN);
+        	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;//上拉输入
         }
         else
         {
-            //GPIODirModeSet(the_inout_iomap[i].gpiobase, the_inout_iomap[i].pinno, GPIO_DIR_MODE_OUT);
-            //GPIOPadConfigSet(the_inout_iomap[i].gpiobase, the_inout_iomap[i].pinno, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+            GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;//推挽输出
         }
+
+        GPIO_InitStructure.GPIO_Pin = the_inout_iomap[i].pinno;
+        GPIO_Init((GPIO_TypeDef*)(the_inout_iomap[i].gpiobase), &GPIO_InitStructure);
     }
-#endif
+
     sys_gpio_bspInstall(bsp_gpio_cfg, bsp_gpio_read, bsp_gpio_write);
 
 }
