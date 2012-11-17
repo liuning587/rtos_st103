@@ -25,10 +25,11 @@ typedef enum
     IO_LED1,            /* LED1        */
     IO_LED2,            /* LED2        */
     IO_LED3,            /* LED3        */
-    IO_LED4,            /* LED2        */
-    IO_LED5,            /* LED3        */
-    IO_LED6,            /* LED3        */
-    IO_BUTTON,          /* USER BOTTON */
+    IO_KEY0,            /* LED2        */
+    IO_KEY1,            /* LED3        */
+    IO_KEY2,            /* LED3        */
+    IO_KEY3,          /* USER BOTTON */
+    IO_LCD_AK,
     IO_MAX_COUNTS
 } gpio_out_e;
 

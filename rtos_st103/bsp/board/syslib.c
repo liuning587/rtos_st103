@@ -32,10 +32,10 @@ void sysHwInit0(void)
 
     intLibInit();
 
-#if 0
-    //系统IO初始化
-    sysGpioInit();
 
+    //系统IO初始化
+    bsp_gpio_init();
+#if 0
     //系统串口初始化
     sysSerialHwInit();
     //系统ADC3初始化
