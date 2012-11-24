@@ -30,6 +30,11 @@ typedef enum
     IO_KEY2,            /* LED3        */
     IO_KEY3,          /* USER BOTTON */
     IO_LCD_AK,
+    IO_LCD_RST,         /* LCD RST PIN */
+    IO_LCD_CS,
+    IO_LCD_CLK,
+    IO_LCD_A0,
+    IO_LCD_MOSI,
     IO_MAX_COUNTS
 } gpio_out_e;
 

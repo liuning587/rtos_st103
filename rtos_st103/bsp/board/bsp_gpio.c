@@ -14,15 +14,20 @@ typedef struct
 /*输入IO的对应关系表*/
 static const io_map_t the_inout_iomap[] =
 {
-    {IO_LED0,   IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_0},
-    {IO_LED1,   IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_1},
-    {IO_LED2,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_8},
-    {IO_LED3,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_9},
-    {IO_KEY0,   IO_INPUT,   GPIOB_BASE, GPIO_Pin_0},
-    {IO_KEY1,   IO_INPUT,   GPIOB_BASE, GPIO_Pin_1},
-    {IO_KEY2,   IO_INPUT,   GPIOA_BASE, GPIO_Pin_8},
-    {IO_KEY3,   IO_INPUT,   GPIOA_BASE, GPIO_Pin_13},
-    {IO_LCD_AK, IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_5}
+    {IO_LED0,     IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_0},
+    {IO_LED1,     IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_1},
+    {IO_LED2,     IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_8},
+    {IO_LED3,     IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_9},
+    {IO_KEY0,     IO_INPUT,   GPIOB_BASE, GPIO_Pin_0},
+    {IO_KEY1,     IO_INPUT,   GPIOB_BASE, GPIO_Pin_1},
+    {IO_KEY2,     IO_INPUT,   GPIOA_BASE, GPIO_Pin_8},
+    {IO_KEY3,     IO_INPUT,   GPIOA_BASE, GPIO_Pin_13},
+    {IO_LCD_AK,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_5},
+    {IO_LCD_A0,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_6},
+    {IO_LCD_RST,  IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_7},
+    {IO_LCD_CS,   IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_1},
+    {IO_LCD_CLK,  IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_2},
+    {IO_LCD_MOSI, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_3},
 };
 static status_t
 bsp_gpio_cfg(int32_t io_no, int32_t value)
