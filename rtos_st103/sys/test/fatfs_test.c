@@ -18,23 +18,6 @@ uint32_t do_fat_test(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 
 
     f_mount(0, &Fatfs);     /* Register volume work area (never fails) */
-#if 1
-    printf("\nOpen an existing file (message.txt).\n");
-    rc = f_open(&Fil, "MESSAGE.TXT", FA_READ);
-    if (rc) die(rc);
-
-    printf("\nType the file content.\n");
-    for (;;) {
-        rc = f_read(&Fil, Buff, sizeof Buff, &br);  /* Read a chunk of file */
-        if (rc || !br) break;           /* Error or end of file */
-        for (i = 0; i < br; i++)        /* Type the data */
-            putchar(Buff[i]);
-    }
-    if (rc) die(rc);
-
-    printf("\nClose the file.\n");
-    rc = f_close(&Fil);
-    if (rc) die(rc);
 
     printf("\nCreate a new file (hello.txt).\n");
     rc = f_open(&Fil, "HELLO.TXT", FA_WRITE | FA_CREATE_ALWAYS);
@@ -48,7 +31,24 @@ uint32_t do_fat_test(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
     printf("\nClose the file.\n");
     rc = f_close(&Fil);
     if (rc) die(rc);
-#endif
+
+    printf("\nOpen an existing file (hello.txt).\n");
+    rc = f_open(&Fil, "HELLO.TXT", FA_READ);
+    if (rc) die(rc);
+
+    printf("\nType the file content.\n");
+    for (;;) {
+        rc = f_read(&Fil, Buff, sizeof Buff, &br);  /* Read a chunk of file */
+        if (rc || !br) break;           /* Error or end of file */
+        for (i = 0; i < br; i++)        /* Type the data */
+            printf("%c", Buff[i]);
+    }
+    if (rc) die(rc);
+
+    printf("\nClose the file.\n");
+    rc = f_close(&Fil);
+    if (rc) die(rc);
+
     printf("\nOpen root directory.\n");
     rc = f_opendir(&dir, "");
     if (rc) die(rc);
@@ -64,6 +64,7 @@ uint32_t do_fat_test(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
     }
     if (rc) die(rc);
 
+    f_mount(0, &Fatfs);     /* unmount */
     printf("\nTest completed.\n");
 
     return 0;
@@ -72,3 +73,5 @@ SHELL_CMD(
     fattest, CFG_MAXARGS,        do_fat_test,
     "fattest \r\t\t\t\t do_fat_test \r\n"
 );
+
+
