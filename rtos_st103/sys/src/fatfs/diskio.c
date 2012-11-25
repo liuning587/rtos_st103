@@ -8,14 +8,29 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
-#include "../../driver/spi_sd.h"
+//#include "../../driver/spi_sd.h"
 #include "ftl.h"
 
 /* Definitions of physical drive number for each media */
 #define FTL		1
 #define MMC		0
 
-
+extern DSTATUS sd_initialize (void);
+extern DSTATUS sd_status (void);
+extern DRESULT sd_read (
+        BYTE *buff,         /* Pointer to the data buffer to store read data */
+        DWORD sector,       /* Start sector number (LBA) */
+        BYTE count          /* Sector count (1..128) */
+    );
+extern DRESULT sd_write (
+        const BYTE *buff,   /* Pointer to the data to be written */
+        DWORD sector,       /* Start sector number (LBA) */
+        BYTE count          /* Sector count (1..128) */
+    );
+extern DRESULT sd_ioctl (
+        BYTE ctrl,      /* Control code */
+        void *buff      /* Buffer to send/receive control data */
+    );
 /*-----------------------------------------------------------------------*/
 /* Inidialize a Drive                                                    */
 /*-----------------------------------------------------------------------*/
@@ -24,17 +39,18 @@ DSTATUS disk_initialize (
 	BYTE drv				/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat;
-
 	switch (drv) {
 	case FTL :
-		return stat;
+		return RES_ERROR;
 
 	case MMC :
+	    return sd_initialize();
+#if 0
         if (SD_Init() == SD_RESPONSE_NO_ERROR)
             return RES_OK;
         else
             return RES_ERROR;
+#endif
 	}
 	return STA_NOINIT;
 }
@@ -57,7 +73,7 @@ DSTATUS disk_status (
 		return stat;
 
 	case MMC :
-		return stat;
+		return sd_status();
 	}
 	return STA_NOINIT;
 }
@@ -81,11 +97,14 @@ DRESULT disk_read (
 		return RES_ERROR;
 
 	case MMC :
+	    return sd_read(buff, sector, count);
+#if 0
 	    //printf("read sector:%d count:%d\n", sector, count);
 	    if (SD_ReadMultiBlocks(buff, sector * 512, 512, count) == SD_RESPONSE_NO_ERROR)
 	        return RES_OK;
 	    else
 	       return RES_ERROR;
+#endif
 	}
 	return RES_PARERR;
 }
@@ -104,18 +123,19 @@ DRESULT disk_write (
 	BYTE count			/* Number of sectors to write (1..128) */
 )
 {
-	DRESULT res;
-
 	switch (drv) {
 	case FTL :
-		return res;
+		return RES_ERROR;
 
 	case MMC :
+        return sd_write(buff, sector, count);
+#if 0
         //printf("write sector:%d count:%d\n", sector, count);
         if (SD_WriteMultiBlocks((uint8_t*)buff, sector * 512, 512, count) == SD_RESPONSE_NO_ERROR)
             return RES_OK;
         else
            return RES_ERROR;
+#endif
 	}
 	return RES_PARERR;
 }
@@ -133,8 +153,6 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control dFTL */
 )
 {
-	DRESULT res;
-
 	switch (drv) {
 	case FTL :
 		// pre-process here
@@ -143,11 +161,12 @@ DRESULT disk_ioctl (
 
 		// post-process here
 
-		return res;
+		return RES_ERROR;
 
 	case MMC :
+        return sd_ioctl(ctrl, buff);
 		// pre-process here
-	    return RES_OK;
+	    //return RES_OK;
 		// post-process here
 
 	}

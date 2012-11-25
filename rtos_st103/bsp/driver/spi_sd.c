@@ -1,8 +1,8 @@
 
+#if 0
 /* Includes ------------------------------------------------------------------*/
 #include <spi.h>
 #include "spi_sd.h"
-#if 1
 
 static uint8_t SD_WriteByte(uint8_t byte);
 static uint8_t SD_ReadByte(void);

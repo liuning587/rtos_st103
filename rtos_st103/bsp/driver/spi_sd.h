@@ -25,7 +25,7 @@
   *
   ******************************************************************************
   */
-
+#if 0
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __STM3210B_EVAL_SPI_SD_H
 #define __STM3210B_EVAL_SPI_SD_H
@@ -270,5 +270,5 @@ uint16_t SD_GetStatus(void);
 /**
   * @}
   */    
-
+#endif
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

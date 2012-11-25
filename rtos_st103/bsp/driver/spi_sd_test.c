@@ -1,3 +1,4 @@
+#if 0
 #include <types.h>
 #include <sched.h>
 #include <shell.h>
@@ -30,3 +31,4 @@ SHELL_CMD(
     sdtest, CFG_MAXARGS,        do_sd_test,
     "sdtest \r\t\t\t\t do_sd_test \r\n"
 );
+#endif

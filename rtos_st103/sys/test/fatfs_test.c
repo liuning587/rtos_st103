@@ -18,7 +18,7 @@ uint32_t do_fat_test(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 
 
     f_mount(0, &Fatfs);     /* Register volume work area (never fails) */
-#if 0
+#if 1
     printf("\nOpen an existing file (message.txt).\n");
     rc = f_open(&Fil, "MESSAGE.TXT", FA_READ);
     if (rc) die(rc);
