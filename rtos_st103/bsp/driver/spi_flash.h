@@ -88,21 +88,7 @@
   * @}
   */ 
   
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Exported_Macros
-  * @{
-  */
-/**
-  * @brief  Select sFLASH: Chip Select pin low
-  */
-#define sFLASH_CS_LOW()       GPIO_ResetBits(sFLASH_CS_GPIO_PORT, sFLASH_CS_PIN)
-/**
-  * @brief  Deselect sFLASH: Chip Select pin high
-  */
-#define sFLASH_CS_HIGH()      GPIO_SetBits(sFLASH_CS_GPIO_PORT, sFLASH_CS_PIN)   
-/**
-  * @}
-  */ 
-  
+
 
 
 /** @defgroup STM3210B_EVAL_SPI_FLASH_Exported_Functions
@@ -121,14 +107,6 @@ void sFLASH_ReadBuffer(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRe
 uint32_t sFLASH_ReadID(void);
 void sFLASH_StartReadSequence(uint32_t ReadAddr);
 
-/**
-  * @brief  Low layer functions
-  */
-uint8_t sFLASH_ReadByte(void);
-uint8_t sFLASH_SendByte(uint8_t byte);
-uint16_t sFLASH_SendHalfWord(uint16_t HalfWord);
-void sFLASH_WriteEnable(void);
-void sFLASH_WaitForWriteEnd(void);
 
 #ifdef __cplusplus
 }

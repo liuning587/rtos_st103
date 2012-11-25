@@ -35,7 +35,10 @@ typedef enum
     IO_LCD_CLK,
     IO_LCD_A0,
     IO_LCD_MOSI,
-    IO_MAX_COUNTS
+    IO_FLASH_CS,
+    IO_SD_CS,
+    IO_WS_CS,
+    IO_MAX_COUNTS,
 } gpio_out_e;
 
 #define IO_NO_SUPPORT                 (-1) /* ÎÞÐ§IO               */

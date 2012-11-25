@@ -26,16 +26,17 @@
  ----------------------------------------------------------------------------*/
 /* custom define */
 #ifndef FLASH_CHIP_SIZE
-#define FLASH_CHIP_SIZE         (0x800000l)         /**< flash尺寸8M */
+//#define FLASH_CHIP_SIZE         (0x800000l)         /**< flash尺寸8M */
+#define FLASH_CHIP_SIZE         (0x400000l)         /**< flash尺寸8M */
 #endif
 
 #define FLASH_CHIP_NUM          (1u)                /**< flash数量 */
 #define FLASH_ERASE_BLOCK_SIZE  0x10000l            /**< 擦除基本单位大小64k */
 #define UNIT_SIZE               0x10000
 #define UNIT_SIZE_BITS          16
-#define MAX_UNIT_COUNT          ((FLASH_CHIP_SIZE*FLASH_CHIP_NUM)>>UNIT_SIZE_BITS)
+#define MAX_UNIT_COUNT          ((FLASH_CHIP_SIZE * FLASH_CHIP_NUM) >> UNIT_SIZE_BITS)
 
-#define BOOT_IMAGE_LEN          0                   /**< 预留给使用 */
+#define BOOT_IMAGE_LEN          FLASH_FTL_OFFSET    /**< 预留字库512k */
 #define PERCENT_USE             98                  /**< 最大使用百分比 */
 #define NO_OF_SPARE_UNITS       1
 //#define VM_ADDRESS_LIMIT      0x10000   /* 64K 内存直接访问寻址 */
@@ -227,7 +228,7 @@ static Flare s_flare;
 /*-----------------------------------------------------------------------------
  Section: Private Function Prototypes
  ----------------------------------------------------------------------------*/
-extern void sysFeedDog();
+//extern void sysFeedDog();
 
 #define checkStatus(exp)      { FLStatus status = (exp); \
                                 if (status != flOK)     \
@@ -1592,8 +1593,7 @@ FLStatus formatFTL(FLFlash *flash)
 //格式化每个物理块，并依次赋予逻辑块号
   for (iUnit = vol.firstPhysicalEUN; iUnit < vol.noOfUnits; iUnit++) {
     FLStatus status;
-    sysFeedDog();
-
+    //sysFeedDog(); todo : feed Dog
     status = formatUnit(&vol,&vol.physicalUnits[iUnit]);
     if (status != flOK)
       status = formatUnit(&vol,&vol.physicalUnits[iUnit]);    /* Do it again */
@@ -1612,7 +1612,7 @@ FLStatus formatFTL(FLFlash *flash)
       if (iUnit - noOfBadUnits < vol.noOfUnits - NO_OF_SPARE_UNITS) {
     checkStatus(assignUnit(&vol,
                    &vol.physicalUnits[iUnit],
-                               (UnitNo)(iUnit - noOfBadUnits)));
+                   (UnitNo)(iUnit - noOfBadUnits)));
         vol.physicalUnits[iUnit].noOfFreeSectors = vol.sectorsPerUnit - vol.unitHeaderSectors;
     vol.logicalUnits[iUnit - noOfBadUnits] = &vol.physicalUnits[iUnit];
       }
@@ -1626,15 +1626,15 @@ FLStatus formatFTL(FLFlash *flash)
 #endif
       return status;
     }
-
-
   }
 
   /* Allocate and write all page sectors */
   vol.totalFreeSectors = vol.noOfPages;    /* Fix for SPR 31147 */
 
   for (iPage = 0; iPage < vol.noOfPages; iPage++)
-    checkStatus(allocateAndWriteSector(&vol,iPage,NULL,FALSE));
+  {
+      checkStatus(allocateAndWriteSector(&vol,iPage,NULL,FALSE));
+  }
 
   return flOK;
 }
@@ -1974,13 +1974,8 @@ status_t ftlCmp(uint32_t virtualAddr, uint8_t * buf, int32_t len, bool_e* same)
 ******************************************************************************/
 status_t ftlInit()
 {
-
     semFtlRW = semBCreate(1);
     FLStatus status;
-
-//    struct spi_dev_s* spi_dev_flash;
-//   spi_dev_flash = spiinitialize(0);
-//    FLFlash* m25p = m25p_initialize(spi_dev_flash);
 
     FLFlash* flash = flash_init();
     if (flash == NULL){

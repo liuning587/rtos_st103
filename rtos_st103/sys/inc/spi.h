@@ -26,7 +26,7 @@ typedef struct spi_ops
     SEM_ID lock;
     void     (*select) (struct spi_ops *dev, bool_e selected);
     uint32_t (*ioctl) (struct spi_ops *dev, uint32_t cmd, void *args);
-    void     (*send) (struct spi_ops *dev, uint8_t dat);
+    uint8_t  (*send) (struct spi_ops *dev, uint8_t dat);
     void     (*sndblock) (struct spi_ops *dev, const uint8_t* pbuf, uint32_t len);
     void     (*recvblock) (struct spi_ops *dev, uint8_t* pbuf, uint32_t len);
 } spi_opt_t;

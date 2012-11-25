@@ -12,7 +12,7 @@ extern uint32_t SysCtlClockGet(void);
 
 static void root_task(void *p_arg);
 
-#define  ROOTSTACKSIZE  (200)      /* 定义root task堆栈大小 */
+#define  ROOTSTACKSIZE  (500)      /* 定义root task堆栈大小 */
 static  uint32_t rootstack[ROOTSTACKSIZE / 4];
 
 void sys_start(void)
@@ -36,6 +36,8 @@ root_task(void *p_arg)
     OSStatInit();
 #endif
     shell_init();
-    usrAppInit();
     excInit();
+    extern status_t ftlInit();
+    ftlInit();
+    usrAppInit();
 }

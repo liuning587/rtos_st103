@@ -101,7 +101,7 @@ flash_write(FLFlash *flash, uint32_t address,void *buffer,int32_t len)
             return flBadLength;
     }
 
-    return  mtdDev[i]->write(mtdDev[i], address,  buffer,len);
+    return  mtdDev[i]->write(mtdDev[i], address,  buffer, len);
 
 }
 
@@ -185,7 +185,7 @@ flash_init(void)
             (pDevTbl->mtdLoadFunc != MTD_TBL_END) && (count < MAX_FLASH_CHIP_NUM);
              pDevTbl++, count++)
         {
-            mtdDev[count] = (struct mtd_dev_s*)pDevTbl->mtdLoadFunc(pDevTbl->param1,pDevTbl->param2);
+            mtdDev[count] = (struct mtd_dev_s*)pDevTbl->mtdLoadFunc(pDevTbl->param1, pDevTbl->param2);
             if (mtdDev[count] == NULL) return NULL;
             s_FlFlash.chipSize += mtdDev[count]->chipsize;
             if (s_FlFlash.erasableBlockSize == 0)

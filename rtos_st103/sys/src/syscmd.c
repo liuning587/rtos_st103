@@ -425,4 +425,15 @@ SHELL_CMD(
     "osecb \r\t\t\t\t show os event control blocks info\n"
 );
 
+uint32_t
+do_fshow(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
+{
+    extern void ftlShow(void);
+    ftlShow();
+    return (0);
+}
+SHELL_CMD(
+    fshow,    CFG_MAXARGS,        do_fshow,
+    "fshow \r\t\t\t\t show ftl info\n"
+);
 /*----------------------------End of syscmd.c--------------------------------*/

@@ -1,127 +1,13 @@
-/**
-  ******************************************************************************
-  * @file    stm3210b_eval_spi_flash.c
-  * @author  MCD Application Team
-  * @version V5.0.1
-  * @date    05-March-2012
-  * @brief   This file provides a set of functions needed to manage the SPI M25Pxxx
-  *          FLASH memory mounted on STM3210B-EVAL board. 
-  *          It implements a high level communication layer for read and write 
-  *          from/to this memory. The needed STM32 hardware resources (SPI and 
-  *          GPIO) are defined in stm3210b_eval.h file, and the initialization is 
-  *          performed in sFLASH_LowLevel_Init() function declared in stm3210b_eval.c 
-  *          file.
-  *          You can easily tailor this driver to any other development board, 
-  *          by just adapting the defines for hardware resources and 
-  *          sFLASH_LowLevel_Init() function.
-  *            
-  *          +-----------------------------------------------------------+
-  *          |                     Pin assignment                        |
-  *          +-----------------------------+---------------+-------------+
-  *          |  STM32 SPI Pins             |     sFLASH    |    Pin      |
-  *          +-----------------------------+---------------+-------------+
-  *          | sFLASH_CS_PIN               | ChipSelect(/S)|    1        |
-  *          | sFLASH_SPI_MISO_PIN / MISO  |   DataOut(Q)  |    2        |
-  *          |                             |   VCC         |    3 (3.3 V)|
-  *          |                             |   GND         |    4 (0 V)  |
-  *          | sFLASH_SPI_MOSI_PIN / MOSI  |   DataIn(D)   |    5        |
-  *          | sFLASH_SPI_SCK_PIN / SCLK   |   Clock(C)    |    6        |
-  *          |                             |    VCC        |    7 (3.3 V)|
-  *          |                             |    VCC        |    8 (3.3 V)|  
-  *          +-----------------------------+---------------+-------------+  
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; COPYRIGHT 2012 STMicroelectronics</center></h2>
-  *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  ******************************************************************************
-  */ 
-
-/* Includes ------------------------------------------------------------------*/
-#include "spi_flash.h"
-#include <stm32f1lib.h>
 #if 0
-/** @addtogroup Utilities
-  * @{
-  */
-  
-/** @addtogroup STM32_EVAL
-  * @{
-  */ 
+#include <stm32f1lib.h>
+#include <spi.h>
+#include "spi_flash.h"
 
-/** @addtogroup STM3210B_EVAL
-  * @{
-  */
-  
-/** @addtogroup STM3210B_EVAL_SPI_FLASH
-  * @brief      This file includes the M25Pxxx SPI FLASH driver of STM3210B-EVAL board.
-  * @{
-  */  
-
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Types
-  * @{
-  */ 
-/**
-  * @}
-  */ 
+#define sFLASH_CS_LOW()   (pflash_spi->select(pflash_spi,TRUE))
+#define sFLASH_CS_HIGH()  (pflash_spi->select(pflash_spi,FALSE))
 
 
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Defines
-  * @{
-  */  
-/**
-  * @}
-  */ 
-
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Macros
-  * @{
-  */
-/**
-  * @}
-  */ 
-  
-
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Variables
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Function_Prototypes
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-
-/** @defgroup STM3210B_EVAL_SPI_FLASH_Private_Functions
-  * @{
-  */ 
-
-/**
-  * @brief  DeInitializes the peripherals used by the SPI FLASH driver.
-  * @param  None
-  * @retval None
-  */
-void sFLASH_DeInit(void)
-{
-  sFLASH_LowLevel_DeInit();
-}
+static spi_opt_t* pflash_spi = NULL;
 
 /**
   * @brief  Initializes the peripherals used by the SPI FLASH driver.
@@ -130,32 +16,10 @@ void sFLASH_DeInit(void)
   */
 void sFLASH_Init(void)
 {
-  SPI_InitTypeDef  SPI_InitStructure;
-
-  sFLASH_LowLevel_Init();
-    
-  /*!< Deselect the FLASH: Chip Select high */
-  sFLASH_CS_HIGH();
-
-  /*!< SPI configuration */
-  SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
-  SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
-  SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
-  SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
-  SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
-  SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
-#if defined (STM32F10X_LD_VL) || defined (STM32F10X_MD_VL) || defined (STM32F10X_HD_VL)
-  SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_2;
-#else
-  SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
-#endif
-
-  SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
-  SPI_InitStructure.SPI_CRCPolynomial = 7;
-  SPI_Init(sFLASH_SPI, &SPI_InitStructure);
-
-  /*!< Enable the sFLASH_SPI  */
-  SPI_Cmd(sFLASH_SPI, ENABLE);
+    if (pflash_spi == NULL)
+    {
+        pflash_spi = spi_init(E_SPI_FLASH_PORT);
+    }
 }
 
 /**
@@ -433,48 +297,6 @@ void sFLASH_StartReadSequence(uint32_t ReadAddr)
 uint8_t sFLASH_ReadByte(void)
 {
   return (sFLASH_SendByte(sFLASH_DUMMY_BYTE));
-}
-
-/**
-  * @brief  Sends a byte through the SPI interface and return the byte received
-  *         from the SPI bus.
-  * @param  byte: byte to send.
-  * @retval The value of the received byte.
-  */
-uint8_t sFLASH_SendByte(uint8_t byte)
-{
-  /*!< Loop while DR register in not emplty */
-  while (SPI_I2S_GetFlagStatus(sFLASH_SPI, SPI_I2S_FLAG_TXE) == RESET);
-
-  /*!< Send byte through the SPI1 peripheral */
-  SPI_I2S_SendData(sFLASH_SPI, byte);
-
-  /*!< Wait to receive a byte */
-  while (SPI_I2S_GetFlagStatus(sFLASH_SPI, SPI_I2S_FLAG_RXNE) == RESET);
-
-  /*!< Return the byte read from the SPI bus */
-  return SPI_I2S_ReceiveData(sFLASH_SPI);
-}
-
-/**
-  * @brief  Sends a Half Word through the SPI interface and return the Half Word
-  *         received from the SPI bus.
-  * @param  HalfWord: Half Word to send.
-  * @retval The value of the received Half Word.
-  */
-uint16_t sFLASH_SendHalfWord(uint16_t HalfWord)
-{
-  /*!< Loop while DR register in not emplty */
-  while (SPI_I2S_GetFlagStatus(sFLASH_SPI, SPI_I2S_FLAG_TXE) == RESET);
-
-  /*!< Send Half Word through the sFLASH peripheral */
-  SPI_I2S_SendData(sFLASH_SPI, HalfWord);
-
-  /*!< Wait to receive a Half Word */
-  while (SPI_I2S_GetFlagStatus(sFLASH_SPI, SPI_I2S_FLAG_RXNE) == RESET);
-
-  /*!< Return the Half Word read from the SPI bus */
-  return SPI_I2S_ReceiveData(sFLASH_SPI);
 }
 
 /**
