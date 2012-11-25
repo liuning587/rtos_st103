@@ -475,3 +475,60 @@ lcd_dispbmp(int32_t line,
     }
     semGive(the_st7565.lcd_sem);
 }
+#include <string.h>
+#include <zk.h>
+/**
+ *******************************************************************************
+ * @brief      在LCD上显示字符或则汉字.
+ * @param[in]  line    行序号，0~3,
+ * @param[in]  x       横坐标
+ * @param[in]  *data   需要显示的图片数据
+ * @param[in]  iny     0 字符不需要取反   1字符需要取反
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ *******************************************************************************
+ */
+extern void
+lcd_text(uint8_t font,
+         int32_t line,
+         int32_t x,
+         const uint8_t *pcontent,
+         uint8_t iny)
+{
+    uint8_t data[32];
+    int32_t i = 0;
+    int32_t j = 0;
+
+    while (i < strlen((char_t*)pcontent))
+    {
+
+        if (pcontent[i] < 0x80)
+        {/* ascii */
+            zk_generate_data(font, pcontent + i, 1, data);
+            if (iny == 1)
+            {
+                for (j = 0; j < 32; j++)
+                    data[j] = (uint8_t)~data[j];
+            }
+            lcd_disp_asc16(line, x, 1, data);
+            i++;
+            x += 8;
+        }
+        else
+        {
+            zk_generate_data(font, pcontent + i, 2, data);
+            if (iny == 1)
+            {
+                for (j = 0; j < 32; j++)
+                    data[j] = (uint8_t)~data[j];
+            }
+            lcd_disp_hz16(line, x, 1, data);
+            i += 2;
+            x += 16;
+        }
+    }
+}

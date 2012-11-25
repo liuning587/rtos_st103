@@ -100,4 +100,30 @@ SHELL_CMD(
     flashtest, CFG_MAXARGS,        do_flashtest,
     "flashtest \r\t\t\t\t do_flashtest \r\n"
 );
+
+uint32_t do_flashread(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
+{
+    FLFlash* pflash = flash_init();
+    if (pflash == NULL)
+    {
+        printf("flash_init err!\n");
+        return -1;
+    }
+    FLStatus ret = pflash->read(pflash, 1024*300, rddata, WD_LEN);    //¶ÁÊý¾Ý1ks
+
+    printbuffer("read data:", rddata, WD_LEN);
+    printf("ret = %d\n", ret);
+
+    uint8_t a = 0x88;
+    ret = pflash->write(pflash, 1024*300, &a, 1);
+    printf("a = %d ret = %d\n", a, ret);
+    uint8_t b = 0;
+    ret = pflash->read(pflash, 1024*300, &b, 1);
+    printf("b = %d ret = %d\n", b, ret);
+    return 0;
+}
+SHELL_CMD(
+    flashread, CFG_MAXARGS,        do_flashread,
+    "flashread \r\t\t\t\t do_flashtest \r\n"
+);
 #endif

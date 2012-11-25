@@ -19,15 +19,13 @@
 #include <sched.h>
 #include <ftl.h>
 #include <flash.h>
-//#include <config.h>
 
 /*-----------------------------------------------------------------------------
  Section: Macro Definitions
  ----------------------------------------------------------------------------*/
 /* custom define */
 #ifndef FLASH_CHIP_SIZE
-//#define FLASH_CHIP_SIZE         (0x800000l)         /**< flash³ß´ç8M */
-#define FLASH_CHIP_SIZE         (0x400000l)         /**< flash³ß´ç8M */
+#define FLASH_CHIP_SIZE         (0x800000l)         /**< flash³ß´ç8M */
 #endif
 
 #define FLASH_CHIP_NUM          (1u)                /**< flashÊýÁ¿ */
