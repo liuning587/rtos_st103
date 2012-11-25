@@ -10,7 +10,7 @@
 #include <sys_gpio.h>
 #include "spi.h"
 
-static spi_opt_t the_spi_port[E_SPI_ZIGBEE_PORT] = {};
+static spi_opt_t the_spi_port[E_SPI_MAX_PORT] = {};
 
 static status_t soft_spi_init(spi_opt_t* pspi);
 static status_t spi1_init(spi_opt_t* pspi, spi_port_e port);

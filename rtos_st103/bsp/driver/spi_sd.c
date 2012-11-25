@@ -34,16 +34,19 @@ SD_Error SD_Init(void)
 {
   uint32_t i = 0;
 
-  /*!< Initialize SD_SPI */
-  the_sd_spi = spi_init(E_SPI_SD_PORT);
   if (the_sd_spi == NULL)
   {
-      return SD_SPI_ERR;
-  }
+      /*!< Initialize SD_SPI */
+      the_sd_spi = spi_init(E_SPI_SD_PORT);
+      if (the_sd_spi == NULL)
+      {
+          return SD_SPI_ERR;
+      }
 
-  if ((the_sd_spi->lock = semBCreate(1)) == NULL)
-  {
-      return SD_SPI_ERR;
+      if ((the_sd_spi->lock = semBCreate(1)) == NULL)
+      {
+          return SD_SPI_ERR;
+      }
   }
 
   /*!< SD chip select high */
