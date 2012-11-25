@@ -80,7 +80,9 @@ typedef enum
   SD_DATA_OK                = (0x05),
   SD_DATA_CRC_ERROR         = (0x0B),
   SD_DATA_WRITE_ERROR       = (0x0D),
-  SD_DATA_OTHER_ERROR       = (0xFF)
+  SD_DATA_OTHER_ERROR       = (0xFF),
+
+  SD_SPI_ERR                = (0x50)
 } SD_Error;
 
 /** 
@@ -222,25 +224,11 @@ typedef struct
   * @}
   */ 
   
-/** @defgroup STM3210B_EVAL_SPI_SD_Exported_Macros
-  * @{
-  */
-/** 
-  * @brief  Select SD Card: ChipSelect pin low   
-  */  
-#define SD_CS_LOW()     GPIO_ResetBits(SD_CS_GPIO_PORT, SD_CS_PIN)
-/** 
-  * @brief  Deselect SD Card: ChipSelect pin high   
-  */ 
-#define SD_CS_HIGH()    GPIO_SetBits(SD_CS_GPIO_PORT, SD_CS_PIN)
-/**
-  * @}
-  */ 
+
 
 /** @defgroup STM3210B_EVAL_SPI_SD_Exported_Functions
   * @{
   */ 
-void SD_DeInit(void);  
 SD_Error SD_Init(void);
 uint8_t SD_Detect(void);
 SD_Error SD_GetCardInfo(SD_CardInfo *cardinfo);
@@ -257,8 +245,6 @@ uint8_t SD_GetDataResponse(void);
 SD_Error SD_GoIdleState(void);
 uint16_t SD_GetStatus(void);
 
-uint8_t SD_WriteByte(uint8_t byte);
-uint8_t SD_ReadByte(void);
 
 #ifdef __cplusplus
 }

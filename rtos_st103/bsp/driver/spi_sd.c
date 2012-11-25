@@ -1,130 +1,27 @@
-/**
-  ******************************************************************************
-  * @file    stm3210b_eval_spi_sd.c
-  * @author  MCD Application Team
-  * @version V5.0.1
-  * @date    05-March-2012
-  * @brief   This file provides a set of functions needed to manage the SPI SD 
-  *          Card memory mounted on STM3210B-EVAL board. 
-  *          It implements a high level communication layer for read and write 
-  *          from/to this memory. The needed STM32 hardware resources (SPI and 
-  *          GPIO) are defined in stm3210b_eval.h file, and the initialization is 
-  *          performed in SD_LowLevel_Init() function declared in stm3210b_eval.c 
-  *          file.
-  *          You can easily tailor this driver to any other development board, 
-  *          by just adapting the defines for hardware resources and 
-  *          SD_LowLevel_Init() function.
-  *
-  *          ===================================================================
-  *          Note: 
-  *           - This driver doesn't support SD High Capacity cards.
-  *          ===================================================================
-  *
-  *          +-------------------------------------------------------+
-  *          |                     Pin assignment                    |
-  *          +-------------------------+---------------+-------------+
-  *          |  STM32 SPI Pins         |     SD        |    Pin      |
-  *          +-------------------------+---------------+-------------+
-  *          | SD_SPI_CS_PIN           |   ChipSelect  |    1        |
-  *          | SD_SPI_MOSI_PIN / MOSI  |   DataIn      |    2        |
-  *          |                         |   GND         |    3 (0 V)  |
-  *          |                         |   VDD         |    4 (3.3 V)|
-  *          | SD_SPI_SCK_PIN / SCLK   |   Clock       |    5        |
-  *          |                         |   GND         |    6 (0 V)  |
-  *          | SD_SPI_MISO_PIN / MISO  |   DataOut     |    7        |
-  *          +-------------------------+---------------+-------------+
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; COPYRIGHT 2012 STMicroelectronics</center></h2>
-  *
-  * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
-  * You may not use this file except in compliance with the License.
-  * You may obtain a copy of the License at:
-  *
-  *        http://www.st.com/software_license_agreement_liberty_v2
-  *
-  * Unless required by applicable law or agreed to in writing, software 
-  * distributed under the License is distributed on an "AS IS" BASIS, 
-  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  * See the License for the specific language governing permissions and
-  * limitations under the License.
-  *
-  ******************************************************************************
-  */
 
 /* Includes ------------------------------------------------------------------*/
+#include <spi.h>
 #include "spi_sd.h"
-#if 0
-/** @addtogroup Utilities
-  * @{
+#if 1
+
+static uint8_t SD_WriteByte(uint8_t byte);
+static uint8_t SD_ReadByte(void);
+/**
+  * @brief  Select SD Card: ChipSelect pin low
   */
-  
-/** @addtogroup STM32_EVAL
-  * @{
-  */ 
-
-/** @addtogroup STM3210B_EVAL
-  * @{
+#define SD_CS_LOW()     the_sd_spi->select(the_sd_spi, TRUE)
+/**
+  * @brief  Deselect SD Card: ChipSelect pin high
   */
-  
-/** @addtogroup STM3210B_EVAL_SPI_SD
-  * @brief      This file includes the SD card driver of STM32-EVAL boards.
-  * @{
-  */ 
-
-/** @defgroup STM3210B_EVAL_SPI_SD_Private_Types
-  * @{
-  */ 
+#define SD_CS_HIGH()    the_sd_spi->select(the_sd_spi, FALSE)
 /**
   * @}
-  */ 
-
-
-/** @defgroup STM3210B_EVAL_SPI_SD_Private_Defines
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-/** @defgroup STM3210B_EVAL_SPI_SD_Private_Macros
-  * @{
   */
-/**
-  * @}
-  */ 
-  
-
-/** @defgroup STM3210B_EVAL_SPI_SD_Private_Variables
-  * @{
-  */ 
-/**
-  * @}
-  */ 
-
-
-/** @defgroup STM3210B_EVAL_SPI_SD_Private_Function_Prototypes
-  * @{
-  */
-/**
-  * @}
-  */ 
-
-
 /** @defgroup STM3210B_EVAL_SPI_SD_Private_Functions
   * @{
   */ 
 
-/**
-  * @brief  DeInitializes the SD/SD communication.
-  * @param  None
-  * @retval None
-  */
-void SD_DeInit(void)
-{
-  SD_LowLevel_DeInit();
-}
+static spi_opt_t* the_sd_spi = NULL;
 
 /**
   * @brief  Initializes the SD/SD communication.
@@ -138,7 +35,16 @@ SD_Error SD_Init(void)
   uint32_t i = 0;
 
   /*!< Initialize SD_SPI */
-  SD_LowLevel_Init(); 
+  the_sd_spi = spi_init(E_SPI_SD_PORT);
+  if (the_sd_spi == NULL)
+  {
+      return SD_SPI_ERR;
+  }
+
+  if ((the_sd_spi->lock = semBCreate(1)) == NULL)
+  {
+      return SD_SPI_ERR;
+  }
 
   /*!< SD chip select high */
   SD_CS_HIGH();
@@ -164,11 +70,13 @@ uint8_t SD_Detect(void)
 {
   __IO uint8_t status = SD_PRESENT;
 
+#if 0
   /*!< Check GPIO to detect SD */
   if (GPIO_ReadInputData(SD_DETECT_GPIO_PORT) & SD_DETECT_PIN)
   {
     status = SD_NOT_PRESENT;
   }
+#endif
   return status;
 }
 
@@ -840,23 +748,9 @@ SD_Error SD_GoIdleState(void)
   * @param  Data: byte to send.
   * @retval None
   */
-uint8_t SD_WriteByte(uint8_t Data)
+static uint8_t SD_WriteByte(uint8_t Data)
 {
-  /*!< Wait until the transmit buffer is empty */
-  while(SPI_I2S_GetFlagStatus(SD_SPI, SPI_I2S_FLAG_TXE) == RESET)
-  {
-  }
-  
-  /*!< Send the byte */
-  SPI_I2S_SendData(SD_SPI, Data);
-  
-  /*!< Wait to receive a byte*/
-  while(SPI_I2S_GetFlagStatus(SD_SPI, SPI_I2S_FLAG_RXNE) == RESET)
-  {
-  }
-  
-  /*!< Return the byte read from the SPI bus */ 
-  return (uint8_t)SPI_I2S_ReceiveData(SD_SPI);
+  return the_sd_spi->send(the_sd_spi, Data);
 }
 
 /**
@@ -864,48 +758,9 @@ uint8_t SD_WriteByte(uint8_t Data)
   * @param  None
   * @retval The received byte.
   */
-uint8_t SD_ReadByte(void)
+static uint8_t SD_ReadByte(void)
 {
-  uint8_t Data = 0;
-  
-  /*!< Wait until the transmit buffer is empty */
-  while (SPI_I2S_GetFlagStatus(SD_SPI, SPI_I2S_FLAG_TXE) == RESET)
-  {
-  }
-  /*!< Send the byte */
-  SPI_I2S_SendData(SD_SPI, SD_DUMMY_BYTE);
-
-  /*!< Wait until a data is received */
-  while (SPI_I2S_GetFlagStatus(SD_SPI, SPI_I2S_FLAG_RXNE) == RESET)
-  {
-  }
-  /*!< Get the received data */
-  Data = (uint8_t)SPI_I2S_ReceiveData(SD_SPI);
-
-  /*!< Return the shifted data */
-  return Data;
+    return the_sd_spi->send(the_sd_spi, SD_DUMMY_BYTE);
 }
 
-/**
-  * @}
-  */
-
-
-/**
-  * @}
-  */
-
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */  
 #endif
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
