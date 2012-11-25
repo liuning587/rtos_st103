@@ -19,6 +19,7 @@ typedef enum
     E_SPI_SD_PORT,
     E_SPI_FLASH_PORT,
     E_SPI_ZIGBEE_PORT,
+    E_SPI_MAX_PORT,
 } spi_port_e;
 
 typedef struct spi_ops
