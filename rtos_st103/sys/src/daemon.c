@@ -6,7 +6,7 @@
  *             Created on: 2012-11-26
  *             Author: daixuyi
  * @details    This file including all API functions's implement of dps.
- * @copy       Copyrigth(C), 2008-2012.
+ * &copy       Copyrigth(C), 2008-2012.
  *
  ******************************************************************************
  */
@@ -16,30 +16,33 @@
 #include <string.h>
 #include <shell.h>
 
-#define DM_MAX_TASK_NUM         10
-#define DM_MAX_NAME_LEN         8
-#define DM_MAX_CHECK_TIME       10 //喂狗间隔时间(s)
-#define OS_TASK_DAEMON_PRIO     8
-#define OS_TASK_DAEMON_STK_SIZE 512
+#define DM_MAX_TASK_NUM         (10u)       /**< 最大任务注册数量 */
+#define DM_MAX_NAME_LEN         (8u)
+#define DM_MAX_CHECK_TIME       (10u)       //喂狗间隔时间(s)
+#define OS_TASK_DAEMON_PRIO     (8u)
+#define OS_TASK_DAEMON_STK_SIZE (512u)
 
 typedef struct soft_dog
 {
-    int count;                 /**< 计数器 */
-    char name[DM_MAX_NAME_LEN];
-    struct soft_dog *next;
-}soft_dog_t;
+    int32_t count;                 /**< 计数器 */
+    char_t name[DM_MAX_NAME_LEN];
+    struct soft_dog* next;
+} soft_dog_t;
+
 static soft_dog_t the_soft_dog[DM_MAX_TASK_NUM];
 static soft_dog_t *phead = NULL;
 static soft_dog_t *pfree = NULL;
 static uint32_t the_fd = -1;
 static uint8_t daemon_pri = OS_TASK_DAEMON_PRIO;                 /*DAEMON线程的优先级*/
 static uint32_t daemonstack_size = OS_TASK_DAEMON_STK_SIZE;      /*DAEMON线程的堆栈大小*/
-static uint32_t daemonstack[OS_TASK_DAEMON_STK_SIZE/4];          /*DAEMON线程的堆栈*/
+static uint32_t daemonstack[OS_TASK_DAEMON_STK_SIZE / 4];          /*DAEMON线程的堆栈*/
 
-static uint32_t soft_dog_init(void)
+static uint32_t
+soft_dog_init(void)
 {
 	OS_CPU_SR cpu_sr;
 	uint32_t i;
+
 	OS_ENTER_CRITICAL();
 	memset(the_soft_dog, 0x00, sizeof(the_soft_dog[DM_MAX_TASK_NUM]));
 	for(i = 0; i < DM_MAX_TASK_NUM - 1; i++)
@@ -50,25 +53,32 @@ static uint32_t soft_dog_init(void)
 	phead = &the_soft_dog[0];
 	pfree = &the_soft_dog[0];
 	OS_EXIT_CRITICAL();
+
 	return 0;
 }
 
-static soft_dog_t* find_by_name(char *name)
+static soft_dog_t*
+find_by_name(char_t* name)
 {
 	OS_CPU_SR cpu_sr;
     soft_dog_t* pnode = phead;
+
+	OS_ENTER_CRITICAL();
 	while(pnode != NULL)
 	{
-		OS_ENTER_CRITICAL();
 		if(strncmp(pnode->name, name, DM_MAX_NAME_LEN) == 0)
 		{
+
+	        OS_EXIT_CRITICAL();
 			return pnode;
 		}
 		pnode = pnode->next;
-		OS_EXIT_CRITICAL();
 	}
+    OS_EXIT_CRITICAL();
+
 	return NULL;
 }
+
 /**
  ******************************************************************************
  * @brief      注册到守护进程
@@ -81,13 +91,14 @@ static soft_dog_t* find_by_name(char *name)
  * @note
  ******************************************************************************
  */
-uint32_t regist_to_daemon(char_t *name)
+uint32_t
+regist_to_daemon(char_t *name)
 {
 	OS_CPU_SR cpu_sr;
 	soft_dog_t *new = NULL;
 	uint32_t fd;
 	fd = the_fd;
-	OS_ENTER_CRITICAL();
+
 	if(find_by_name(name) != NULL)
 	{
 		printf("err %s registered\n", name);
@@ -99,24 +110,28 @@ uint32_t regist_to_daemon(char_t *name)
 	}
 	else
 	{
-//		printf("fd:%d\n", fd);
 		printf("registered too much\n");
 		return -1;//改成统一的错误标识
 	}
+
+	OS_ENTER_CRITICAL();
 	new = pfree;
 	pfree = new->next;
-	the_fd = fd;
 	OS_EXIT_CRITICAL();
+	the_fd = fd;
 
 	new->count = DM_MAX_CHECK_TIME;
 	strncpy(new->name, name, DM_MAX_NAME_LEN);
+
 	return fd;
 }
 
-uint32_t feed_dog(uint32_t task_fd)
+uint32_t
+feed_dog(uint32_t task_fd)
 {
 	OS_CPU_SR cpu_sr;
 	soft_dog_t* pnode = phead;
+
 	while(pnode != NULL)
 	{
 		OS_ENTER_CRITICAL();
@@ -149,7 +164,7 @@ static void daemon_loop(void)
 		while(pnode != NULL)
 		{
 			OS_ENTER_CRITICAL();
-			if((pnode->count == 0)&&(strlen(pnode->name) != 0))
+			if((pnode->count == 0) && (strlen(pnode->name) != 0))
 			{
 				printf("daemon reboot system...\n");
 			}
@@ -179,7 +194,7 @@ static void wdt_show(void)
 	{
 		printf("%s", pnode->name);
 		printf("\r\t\t\t");
-		printf("%d\n",pnode->count);
+		printf("%d\n", pnode->count);
 		pnode = pnode->next;
 
 	}
