@@ -3,8 +3,8 @@
  * @file       daemon.c
  * @version    V1.1.4
  * @brief      API C source file of daemon.c
- *             Created on: 2012-8-30
- *             Author: liuning
+ *             Created on: 2012-11-26
+ *             Author: daixuyi
  * @details    This file including all API functions's implement of dps.
  * @copy       Copyrigth(C), 2008-2012.
  *
@@ -14,190 +14,184 @@
 #include <ucos_ii.h>
 #include <types.h>
 #include <string.h>
+#include <shell.h>
 
+#define DM_MAX_TASK_NUM         10
+#define DM_MAX_NAME_LEN         8
+#define DM_MAX_CHECK_TIME       10 //喂狗间隔时间(s)
+#define OS_TASK_DAEMON_PRIO     8
+#define OS_TASK_DAEMON_STK_SIZE 512
 
-#define OS_TASK_DAEMON_PRIO              3               /* SHELL线程的优先级*/
-#define OS_TASK_DAEMON_STK_SIZE          1024*8          /* SHELL线程的堆栈大小*/
-uint32_t the_daemon_stack[OS_TASK_DAEMON_STK_SIZE/4];          /*SHELL线程的堆栈*/
-
-#ifndef DM_MAX_TASK_NUM
-#define DM_MAX_TASK_NUM    (10u)        /* 支持的最大任务数量*/
-#endif
-
-#ifndef DM_MAX_NAME_LEN
-#define DM_MAX_NAME_LEN     (8u)        /* 软件狗名称最大长度 */
-#endif
-
-#ifndef DM_MAX_CHECK_TIME
-#define DM_MAX_CHECK_TIME  (300u)       /* 喂软狗超时秒数  */
-#endif
-
-
-typedef struct
+typedef struct soft_dog
 {
-    uint32_t count;                 /**< 计数器 */
-    char_t name[DM_MAX_NAME_LEN];
-} soft_dog_t;
+    int count;                 /**< 计数器 */
+    char name[DM_MAX_NAME_LEN];
+    struct soft_dog *next;
+}soft_dog_t;
+static soft_dog_t the_soft_dog[DM_MAX_TASK_NUM];
+static soft_dog_t *phead = NULL;
+static soft_dog_t *pfree = NULL;
+static uint32_t the_fd = -1;
+static uint8_t daemon_pri = OS_TASK_DAEMON_PRIO;                 /*DAEMON线程的优先级*/
+static uint32_t daemonstack_size = OS_TASK_DAEMON_STK_SIZE;      /*DAEMON线程的堆栈大小*/
+static uint32_t daemonstack[OS_TASK_DAEMON_STK_SIZE/4];          /*DAEMON线程的堆栈*/
 
-static void daemon_loop(void);
-
-static soft_dog_t the_dogs[DM_MAX_TASK_NUM];
-static uint8_t the_reboot_flag = 0;
-
-void
-daemonInit(void)
+static uint32_t soft_dog_init(void)
 {
-    int32_t i;
-
-    for (i = 0; i < DM_MAX_TASK_NUM; i++)
-    {
-        the_dogs[i].count = -1;
-        memset(the_dogs[i].name, 0x00, sizeof(the_dogs[i].name));
-    }
-
-    //TODO:这里打开狗
-
-    taskSpawn("DAEMON",
-            OS_TASK_DAEMON_PRIO,
-            the_daemon_stack,
-            OS_TASK_DAEMON_STK_SIZE,
-            (OSFUNCPTR)daemon_loop,
-            0);
-
-    return ;
+	OS_CPU_SR cpu_sr;
+	uint32_t i;
+	OS_ENTER_CRITICAL();
+	memset(the_soft_dog, 0x00, sizeof(the_soft_dog[DM_MAX_TASK_NUM]));
+	for(i = 0; i < DM_MAX_TASK_NUM - 1; i++)
+	{
+		the_soft_dog[i].next = &the_soft_dog[i + 1];
+	}
+	the_soft_dog[i].next = NULL;
+	phead = &the_soft_dog[0];
+	pfree = &the_soft_dog[0];
+	OS_EXIT_CRITICAL();
+	return 0;
 }
 
-
-static void
-printf_daemon_info()
+static soft_dog_t* find_by_name(char *name)
 {
-
+	OS_CPU_SR cpu_sr;
+    soft_dog_t* pnode = phead;
+	while(pnode != NULL)
+	{
+		OS_ENTER_CRITICAL();
+		if(strncmp(pnode->name, name, DM_MAX_NAME_LEN) == 0)
+		{
+			return pnode;
+		}
+		pnode = pnode->next;
+		OS_EXIT_CRITICAL();
+	}
+	return NULL;
 }
-
 /**
  ******************************************************************************
- * @brief      .
- * @param[in]  None
- * @param[out] None
- * @retval     None
+ * @brief      注册到守护进程
+ * @param[in]  task name
+ * @param[out] fd
+ * @retval     fd
  *
  * @details
  *
  * @note
  ******************************************************************************
  */
-int32_t
-daemon_reg(char_t name)
+uint32_t regist_to_daemon(char_t *name)
 {
-    int32_t i;
-    OS_CPU_SR cpu_sr;
+	OS_CPU_SR cpu_sr;
+	soft_dog_t *new = NULL;
+	uint32_t fd;
+	fd = the_fd;
+	OS_ENTER_CRITICAL();
+	if(find_by_name(name) != NULL)
+	{
+		printf("err %s registered\n", name);
+		return -1;
+	}
+	if(fd ==-1 || fd < DM_MAX_TASK_NUM )
+	{
+		fd ++;
+	}
+	else
+	{
+//		printf("fd:%d\n", fd);
+		printf("registered too much\n");
+		return -1;//改成统一的错误标识
+	}
+	new = pfree;
+	pfree = new->next;
+	the_fd = fd;
+	OS_EXIT_CRITICAL();
 
-    for (i = 0; i < DM_MAX_TASK_NUM; i++)
-    {
-        if (the_dogs[i].count == -1)
-        {
-            OS_ENTER_CRITICAL();
-            the_dogs[i].count = DM_MAX_CHECK_TIME;
-            OS_EXIT_CRITICAL();
-            return i;
-        }
-    }
+	new->count = DM_MAX_CHECK_TIME;
+	strncpy(new->name, name, DM_MAX_NAME_LEN);
+	return fd;
+}
 
-    return -1;
+uint32_t feed_dog(uint32_t task_fd)
+{
+	OS_CPU_SR cpu_sr;
+	soft_dog_t* pnode = phead;
+	while(pnode != NULL)
+	{
+		OS_ENTER_CRITICAL();
+		pnode->count = DM_MAX_CHECK_TIME;
+		pnode = pnode->next;
+		OS_EXIT_CRITICAL();
+	}
+	return 0;
 }
 
 /**
  ******************************************************************************
- * @brief
- * @param[in]  None
- * @param[out] None
- * @retval     None
+ * @brief      守护进程主循环
+ * @param[in]  none
+ * @param[out] none
+ * @retval     none
  *
- * @details
+ * @details   守护进程每一秒钟给所有注册进来的进程的计数器减1
  *
  * @note
  ******************************************************************************
  */
-int32_t
-daemon_feed(uint32_t id)
+static void daemon_loop(void)
 {
-    OS_CPU_SR cpu_sr;
+	OS_CPU_SR cpu_sr;
+	soft_dog_t* pnode = phead;
+	while(1)
+	{
+		taskDelay(OS_TICKS_PER_SEC);//1s
+		while(pnode != NULL)
+		{
+			OS_ENTER_CRITICAL();
+			if((pnode->count == 0)&&(strlen(pnode->name) != 0))
+			{
+				printf("daemon reboot system...\n");
+			}
+			else if((pnode->count != 0)&&(strlen(pnode->name) != 0))
+			{
+				pnode->count --;
+			}
+			pnode = pnode->next;
+			OS_EXIT_CRITICAL();
+		}
+		pnode = phead;
+	}
+}
+void daemon_init()
+{
+	soft_dog_init();
+    taskSpawn("DAEMON", daemon_pri, daemonstack, daemonstack_size, (OSFUNCPTR)daemon_loop, 0);
+}
 
-    if (id >= DM_MAX_TASK_NUM)
-    {
-        return -1;
-    }
+static void wdt_show(void)
+{
+	soft_dog_t* pnode = phead;
+	printf("Name");
+	printf("\r\t\t\t");
+	printf("RemainCounts\n");
+	while((pnode != NULL) && (strlen(pnode->name) != 0))
+	{
+		printf("%s", pnode->name);
+		printf("\r\t\t\t");
+		printf("%d\n",pnode->count);
+		pnode = pnode->next;
 
-    OS_ENTER_CRITICAL();
-    the_dogs[id].count = DM_MAX_CHECK_TIME;
-    OS_EXIT_CRITICAL();
-
+	}
+}
+uint32_t do_wdt_show(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
+{
+	wdt_show();
     return 0;
 }
 
-/**
- ******************************************************************************
- * @brief      复位
- * @param[in]  None
- * @param[out] None
- * @retval     None
- *
- * @details
- *
- * @note
- ******************************************************************************
- */
-void
-daemon_reboot(void)
-{
-    OS_CPU_SR cpu_sr;
-
-    OS_ENTER_CRITICAL();
-    the_reboot_flag = 1u;
-    OS_EXIT_CRITICAL();
-}
-
-/**
- ******************************************************************************
- * @brief     守护任务执行体
- * @param[in]  None
- * @param[out] None
- * @retval     None
- *
- * @details
- *
- * @note
- ******************************************************************************
- */
-static void
-daemon_loop(void)
-{
-    int32_t i;
-    OS_CPU_SR cpu_sr;
-
-    while (1)
-    {
-        taskDelay(OS_TICKS_PER_SEC);
-
-        OS_ENTER_CRITICAL();
-        if (the_reboot_flag == 1u)
-        {
-            /* 重启 */
-        }
-        OS_EXIT_CRITICAL();
-        for (i = 0; i < DM_MAX_TASK_NUM; i++)
-        {
-            if (the_dogs[i].count == 0)
-            {
-                /* 喂狗超时需要重启 */
-            }
-            else if (the_dogs[i].count > 0)
-            {
-                OS_ENTER_CRITICAL();
-                the_dogs[i].count--;
-                OS_EXIT_CRITICAL();
-            }
-        }
-    }
-}
+SHELL_CMD(
+    wdtshow, CFG_MAXARGS,        do_wdt_show,
+    "wdtshow \r\t\t\t\t wdt show \n"
+);
 

@@ -1,8 +1,8 @@
 #ifndef __DAEMON_H__
 #define __DAEMON_H__
 
-extern int32_t daemon_reg(char_t name);
-extern int32_t daemon_feed(uint32_t id);
-extern void daemon_reboot(void);
+extern uint32_t regist_to_daemon(char_t *name);
+extern uint32_t feed_dog(uint32_t task_fd);
+extern void daemon_init(void);
 
 #endif /* __DAEMON_H__ */

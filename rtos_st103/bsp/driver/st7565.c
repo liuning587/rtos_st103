@@ -329,6 +329,7 @@ lcd_logo(void)
     {
         lcd_data((uint8_t) 0x50);
     }
+    LCD_EL_OFF();
 }
 
 /**

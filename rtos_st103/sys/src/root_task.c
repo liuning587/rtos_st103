@@ -39,5 +39,8 @@ root_task(void *p_arg)
     excInit();
     extern status_t ftlInit();
     ftlInit();
+    //守护进程
+    daemon_init();
+    //用户进程
     usrAppInit();
 }
