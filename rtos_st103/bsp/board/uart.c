@@ -72,11 +72,11 @@ stm32f1xxUartDevInit(stm32f1xx_chan_t * pChan)
     /* Enable UART clock */
     if ((USART_TypeDef*)pChan[pChan->ttyno].baseregs == USART1)
     {
-      RCC_APB2PeriphClockCmd(COM_USART_CLK[pChan->ttyno], ENABLE);
+        RCC_APB2PeriphClockCmd(COM_USART_CLK[pChan->ttyno], ENABLE);
     }
     else
     {
-      RCC_APB1PeriphClockCmd(COM_USART_CLK[pChan->ttyno], ENABLE);
+        RCC_APB1PeriphClockCmd(COM_USART_CLK[pChan->ttyno], ENABLE);
     }
 
     /* Configure USART Tx as alternate function  */
@@ -96,7 +96,7 @@ stm32f1xxUartInt(stm32f1xx_chan_t* pChan) /* channel generating the interrupt */
 {
     uint8_t outchar;
 
-    sys_gpio_write(IO_LED0, 1);
+    sys_gpio_write(IO_LED0, 1); //todo test
     if (USART_GetITStatus((USART_TypeDef*)(pChan->baseregs), USART_IT_RXNE) != RESET)
     {
         USART_SendData((USART_TypeDef*)(pChan->baseregs), '?'); //todo
@@ -205,7 +205,7 @@ stm32f1xxUartOptSet(stm32f1xx_chan_t * pChan, tty_param_t* pttyparam)
     USART_InitStructure.USART_BaudRate = pttyparam->baudrate;
     USART_InitStructure.USART_WordLength = pttyparam->wordlength;
     USART_InitStructure.USART_StopBits = pttyparam->stopbits;
-    USART_InitStructure.USART_Parity = pttyparam->stopbits;
+    USART_InitStructure.USART_Parity = pttyparam->parity;
     USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
     USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 
@@ -232,5 +232,4 @@ static bool_e stm32f1xxUartTxIsNull
         return FALSE;
 }
 
-
-/***************************End of stm32f1xxuart.c ***************************/
+/*-------------------------------end of uart.c-------------------------------*/
