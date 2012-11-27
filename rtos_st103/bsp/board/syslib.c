@@ -10,8 +10,60 @@
  *
  ******************************************************************************
  */
+#include <maths.h>
 #include <intlib.h>
-#include <stm32f1lib.h>
+#include <board.h>
+#include <uart.h>
+#include <ftl.h>
+#include <bsp_gpio.h>
+
+/*UART口的定义*/
+typedef struct
+{
+    uint32_t base;
+    uint32_t  ttyno;
+    uint32_t  intid;
+
+} uart_param_t;
+
+
+static const uart_param_t uartParas[] =
+{
+    { USART1_BASE, 0, USART1_IRQn},
+    { USART2_BASE, 1, USART2_IRQn},
+    { USART3_BASE, 2, USART3_IRQn},
+};
+static stm32f1xx_chan_t stm32f1xxUartChan[NUM_TTY];
+
+static void
+sysSerialHwInit(void)
+{
+    for (uint32_t i = 0; i < ARRAY_SIZE(stm32f1xxUartChan); i++)
+    {
+        stm32f1xxUartChan[i].baseregs = uartParas[i].base;
+        stm32f1xxUartChan[i].ttyno = uartParas[i].ttyno;
+        stm32f1xxUartDevInit(&stm32f1xxUartChan[i]);
+    }
+}
+void sysSerialHwInit2(void)
+{
+    for (uint32_t i = 0; i < ARRAY_SIZE(stm32f1xxUartChan); i++){
+       intConnect(uartParas[i].intid, stm32f1xxUartInt, (uint32_t)&stm32f1xxUartChan[i]);
+       intEnable(uartParas[i].intid);
+    }
+}
+
+/* serial channel */
+SIO_CHAN* sysSerialChanGet(int32_t channel)
+{
+    int32_t size = ARRAY_SIZE(stm32f1xxUartChan);
+
+    if (channel < size)
+    {
+        return (SIO_CHAN *)&stm32f1xxUartChan[channel];
+    }
+    return NULL;
+}
 /**
  ******************************************************************************
  * @brief      硬件初始化
@@ -35,17 +87,27 @@ void sysHwInit0(void)
 
     //系统IO初始化
     bsp_gpio_init();
-#if 0
+
     //系统串口初始化
     sysSerialHwInit();
-    //系统ADC3初始化
-    ADC3_CH10_DMA_Config();
-    ADC_SoftwareStartConv(ADC3);
-#endif
+
     intUnlock();
 
 }
 
+void sysHwInit(void)
+{
+    sysSerialHwInit2();
+}
+
+void sysHwInit2()
+{
+    if(ftlInit() != OK)
+    {
+        printf("ftlinit is error\n");
+        while(1){};
+    }
+}
 
 /**
  ******************************************************************************

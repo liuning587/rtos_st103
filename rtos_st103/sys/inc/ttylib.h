@@ -18,15 +18,9 @@
 #include <types.h>
 #include <sched.h>
 
-
 /*-----------------------------------------------------------------------------
  Section: Macro Definitions
  ----------------------------------------------------------------------------*/
-//#define MAXBUFSIZE   128
-//#define MAXLONGBUF   512
-//#define MAXTYNUM     5
-
-
 #define FIONREAD        1       /* get num chars available to read */
 #define FIOFLUSH        2       /* flush any chars in buffers */
 #define FIOOPTIONS      3       /* set options (FIOSETOPTIONS) */
@@ -79,12 +73,7 @@
 #define FIOMOVE         47      /* move file, ala mv, (mv not rename) */
 
 /* serial device I/O controls */
-
-#define SIO_BAUD_SET        0x1003u
-#define SIO_BAUD_GET        0x1004u
-
 #define SIO_HW_OPTS_SET     0x1005u
-#define SIO_HW_OPTS_GET     0x1006u
 
 #define SIO_MODE_SET        0x1007u
 #define SIO_MODE_GET        0x1008u
@@ -118,7 +107,7 @@ typedef struct sio_chan             /* a serial channel */
 
 
 struct sio_drv_funcs                /* driver functions */
-    {
+{
     int32_t (*ioctl)
             (
             SIO_CHAN *  pSioChan,
@@ -141,9 +130,7 @@ struct sio_drv_funcs                /* driver functions */
             uint32_t    ttyno,
             uint8_t *   pchar
             );
-
-
-    };
+};
 
 
 
@@ -152,7 +139,7 @@ typedef struct      /* RING - ring buffer */
     int32_t pToBuf;     /* offset from start of buffer where to write next */
     int32_t pFromBuf;   /* offset from start of buffer where to read next */
     int32_t bufSize;    /* size of ring in bytes */
-    char_t *buf;        /* pointer to start of buffer */
+    uint8_t *buf;        /* pointer to start of buffer */
 } RING;
 
 typedef RING RING_ID;
@@ -168,7 +155,25 @@ typedef struct      /* TY_DEV  */
     SIO_CHAN *  pSioChan;
 } TY_DEV;
 
+#define WordLength_8b                  ((uint16_t)0x0000)
+#define WordLength_9b                  ((uint16_t)0x1000)
 
+#define StopBits_1                     ((uint16_t)0x0000)
+#define StopBits_0_5                   ((uint16_t)0x1000)
+#define StopBits_2                     ((uint16_t)0x2000)
+#define StopBits_1_5                   ((uint16_t)0x3000)
+
+#define Parity_No                      ((uint16_t)0x0000)
+#define Parity_Even                    ((uint16_t)0x0400)
+#define Parity_Odd                     ((uint16_t)0x0600)
+
+typedef struct
+{
+    uint32_t baudrate;      /**< 波特率 */
+    uint16_t wordlength;    /**< 数据位 */
+    uint16_t stopbits;      /**< 停止位 */
+    uint16_t parity;        /**< 校验位 */
+} tty_param_t;
 /*-----------------------------------------------------------------------------
  Section: Globals
  ----------------------------------------------------------------------------*/
