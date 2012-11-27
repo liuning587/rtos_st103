@@ -190,7 +190,7 @@ stm32f1xxUartOpen(stm32f1xx_chan_t* pChan)
     /* Enable the selected USART */
     USART_Cmd((USART_TypeDef*) (pChan->baseregs), ENABLE);
     USART_ITConfig((USART_TypeDef*)(pChan->baseregs), USART_IT_RXNE, ENABLE);
-    Dprintf("bug\n");
+
     return OK;
 }
 

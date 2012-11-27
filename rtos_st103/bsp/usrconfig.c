@@ -37,7 +37,6 @@ static void
 rootTask(void *p_arg)
 {
     //printf version
-    printf("....STM32F103 APP START...\n");
     //初始化系统节拍
     OS_CPU_SysTickInit( (SysCtlClockGet() / OS_TICKS_PER_SEC));
 
@@ -68,6 +67,9 @@ rootTask(void *p_arg)
     sysHwInit2();
     shell_init();
     excInit();
+
+    printf("....STM32F103 APP START...\n");
+    printf(the_rtos_logo);
 
     //守护进程
     daemon_init();
