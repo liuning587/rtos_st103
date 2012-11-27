@@ -45,6 +45,7 @@ rootTask(void *p_arg)
     OSStatInit();
 #endif
 
+    ttyDrv();
     if (NUM_TTY > 0)
     {
         uint32_t ix;

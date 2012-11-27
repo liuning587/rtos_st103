@@ -12,11 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sched.h>
+#include <ttylib.h>
 
-/**
- * 移植提供函数：1、字符串输出  2、读取一个字符
- */
-extern int32_t bsp_getchar(void);
 /*-----------------------------------------------------------------------------
 Section: Constant Definitions
 -----------------------------------------------------------------------------*/
@@ -183,7 +180,8 @@ readline(void)
     {
         taskDelay(1);
         // 检测输入
-        if ((c = bsp_getchar()) == 0)
+        //if ((c = bsp_getchar()) == 0)
+        if (ttyRead(consoleFd, &c, 1) == 0)
         {
             continue;
         }

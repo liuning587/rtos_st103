@@ -177,7 +177,8 @@ typedef struct
 /*-----------------------------------------------------------------------------
  Section: Globals
  ----------------------------------------------------------------------------*/
-
+extern uint32_t consoleFd;      /* fd of initial console device */
+extern uint8_t consoleName[5];  /* console device name, eg. "ttyc0" */
 
 /*-----------------------------------------------------------------------------
  Section: Function Prototypes

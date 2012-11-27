@@ -16,7 +16,7 @@
 #endif
 int putchar(int c)
 {
-#if 0
+#if 1
 extern uint32_t consoleFd;
     if((c) == '\n')
     {

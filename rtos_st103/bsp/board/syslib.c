@@ -31,7 +31,7 @@ static const uart_param_t uartParas[] =
 {
     { USART1_BASE, 0, USART1_IRQn},
     { USART2_BASE, 1, USART2_IRQn},
-    { USART3_BASE, 2, USART3_IRQn},
+    //{ USART3_BASE, 2, USART3_IRQn},
 };
 static stm32f1xx_chan_t stm32f1xxUartChan[NUM_TTY];
 
@@ -64,6 +64,13 @@ SIO_CHAN* sysSerialChanGet(int32_t channel)
     }
     return NULL;
 }
+static void sysRccInit(void)
+{
+    RCC->APB2ENR |= RCC_APB2Periph_USART1;
+    RCC->APB1ENR |= RCC_APB1Periph_USART2;
+    RCC->APB1ENR |= RCC_APB1Periph_USART3;
+}
+
 /**
  ******************************************************************************
  * @brief      硬件初始化
@@ -84,6 +91,8 @@ void sysHwInit0(void)
 
     intLibInit();
 
+    //使能外设
+    sysRccInit();
 
     //系统IO初始化
     bsp_gpio_init();

@@ -90,16 +90,14 @@ stm32f1xxUartDevInit(stm32f1xx_chan_t * pChan)
     GPIO_InitStructure.GPIO_Pin = COM_RX_PIN[pChan->ttyno];
     GPIO_Init(COM_RX_PORT[pChan->ttyno], &GPIO_InitStructure);
 }
-#include <sys_gpio.h>
+
 void
 stm32f1xxUartInt(stm32f1xx_chan_t* pChan) /* channel generating the interrupt */
 {
     uint8_t outchar;
 
-    sys_gpio_write(IO_LED0, 1); //todo test
     if (USART_GetITStatus((USART_TypeDef*)(pChan->baseregs), USART_IT_RXNE) != RESET)
     {
-        USART_SendData((USART_TypeDef*)(pChan->baseregs), '?'); //todo
         /* Read one byte from the receive data register */
         (pChan->sio.pDrvFuncs->putRcvChar)(pChan->ttyno,
                 (uint8_t) (((USART_TypeDef*) (pChan->baseregs))->DR & 0xFF));
@@ -192,7 +190,7 @@ stm32f1xxUartOpen(stm32f1xx_chan_t* pChan)
     /* Enable the selected USART */
     USART_Cmd((USART_TypeDef*) (pChan->baseregs), ENABLE);
     USART_ITConfig((USART_TypeDef*)(pChan->baseregs), USART_IT_RXNE, ENABLE);
-
+    Dprintf("bug\n");
     return OK;
 }
 
@@ -210,7 +208,7 @@ stm32f1xxUartOptSet(stm32f1xx_chan_t * pChan, tty_param_t* pttyparam)
     USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
 
 
-    USART_Cmd((USART_TypeDef*) (pChan->baseregs), DISABLE);
+    //USART_Cmd((USART_TypeDef*) (pChan->baseregs), DISABLE);
     USART_Init((USART_TypeDef*)(pChan->baseregs), &USART_InitStructure);
     //
     // Start the UART.
