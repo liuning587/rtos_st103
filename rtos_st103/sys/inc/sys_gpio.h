@@ -35,9 +35,12 @@ typedef enum
     IO_LCD_CLK,
     IO_LCD_A0,
     IO_LCD_MOSI,
-    IO_FLASH_CS,
-    IO_SD_CS,
-    IO_WS_CS,
+    IO_FLASH_CS,    /* flash片选 */
+    IO_SD_CS,       /* SD片选 */
+    IO_WLM_CS,       /* 无线片选 */
+    IO_WLM_GDO2,
+    IO_WLM_GDO0,
+    IO_WLM_RXEN,    /* L:发射状态（开功放）H:接收状态/(关功放) */
     IO_MAX_COUNTS,
 } gpio_out_e;
 

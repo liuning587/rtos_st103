@@ -30,6 +30,10 @@ static const io_map_t the_inout_iomap[] =
     {IO_LCD_MOSI, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_3},
     {IO_FLASH_CS, IO_OUTPUT1, GPIOA_BASE, GPIO_Pin_4},
     {IO_SD_CS,    IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_4},
+    {IO_WLM_CS,   IO_OUTPUT1, GPIOB_BASE, GPIO_Pin_12},
+    {IO_WLM_GDO2, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_10},
+    {IO_WLM_GDO0, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_11},
+    {IO_WLM_RXEN, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_12},
 };
 static status_t
 bsp_gpio_cfg(int32_t io_no, int32_t value)

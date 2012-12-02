@@ -39,10 +39,5 @@ typedef float       (*FLTFUNCPTR) ();  /* ptr to function returning float */
 typedef void (*VOIDFUNCPTRBOOL)(bool_e b);
 typedef void (*VOIDFUNCPTRBOOLE)(bool_e b);
 
-#define Dprintf(x...) \
-{    \
-    (void)printf("\'%s\'L[%d] %s()=>", __FILE__, __LINE__, __FUNCTION__); \
-    (void)printf(x);    \
-}
 
 #endif /* __TYPES_H__ */

@@ -14,6 +14,7 @@ static spi_opt_t the_spi_port[E_SPI_MAX_PORT] = {};
 
 static status_t soft_spi_init(spi_opt_t* pspi);
 static status_t spi1_init(spi_opt_t* pspi, spi_port_e port);
+static status_t spi2_init(spi_opt_t* pspi, spi_port_e port);
 
 spi_opt_t*
 spi_init(spi_port_e port)
@@ -43,6 +44,7 @@ spi_init(spi_port_e port)
             if ((is_init & (1u << port)) == 0u)
             {
                 is_init |= (1u << port);
+                spi2_init(&the_spi_port[port], port);
             }
             break;
 
@@ -385,7 +387,7 @@ spi1_init(spi_opt_t* pspi, spi_port_e port)
     return OK;
 }
 
-#if 0
+
 /**
  ******************************************************************************
  * @brief      SPI2片选
@@ -401,7 +403,7 @@ spi1_init(spi_opt_t* pspi, spi_port_e port)
 static void
 spi2_select(spi_opt_t *dev, bool_e selected)
 {
-    sys_gpio_write(IO_WS_CS, (selected == TRUE) ? 0u : 1u);
+    sys_gpio_write(IO_WLM_CS, (selected == TRUE) ? 0u : 1u);
 }
 
 /**
@@ -475,7 +477,7 @@ spi2_sendblock(spi_opt_t *dev, const uint8_t* pbuf, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
     {
-        spi_sendbyte(SPI2, pbuf[len]);
+        spi2_sendbyte(pbuf[len]);
     }
 }
 
@@ -496,7 +498,87 @@ spi2_recvblock(spi_opt_t *dev, uint8_t* pbuf, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
     {
-        pbuf[i] = spi_readbyte(SPI2);
+        pbuf[i] = spi2_readbyte();
     }
 }
-#endif
+
+/**
+ ******************************************************************************
+ * @brief      SPI2
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static status_t
+spi2_init(spi_opt_t* pspi, spi_port_e port)
+{
+    static bool_e is_init = FALSE;
+    static SEM_ID spi2_lock = NULL;
+
+    if (is_init == FALSE)
+    {
+        if ((spi2_lock = semBCreate(1)) == NULL)
+        {
+            return ERROR;
+        }
+        is_init = TRUE;
+
+        /* 初始化SPI IO口 */
+        GPIO_InitTypeDef GPIO_InitStructure;
+
+        /*!< SPI1 Periph clock enable */
+        RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2, ENABLE);
+
+        /*!< Configure SPI1 pins: SCK */
+        GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
+        GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+        GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+        GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+        /*!< Configure SPI1 pins: MOSI */
+        GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;
+        GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+        /*!< Configure SPI1 pins: MISO */
+        GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14;
+        GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+        GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+        SPI_InitTypeDef  SPI_InitStructure;
+
+
+        /*!< Deselect the wireless: Chip Select high */
+        sys_gpio_write(IO_WLM_CS, 1u);
+
+        /*!< SPI configuration */
+        SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
+        SPI_InitStructure.SPI_Mode = SPI_Mode_Master;
+        SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;
+        SPI_InitStructure.SPI_CPOL = SPI_CPOL_High;
+        SPI_InitStructure.SPI_CPHA = SPI_CPHA_2Edge;
+        SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;
+
+        SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_4;
+
+        SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+        SPI_InitStructure.SPI_CRCPolynomial = 7;
+        SPI_Init(SPI2, &SPI_InitStructure);
+
+        /*!< Enable the wireless spi  */
+        SPI_Cmd(SPI2, ENABLE);
+    }
+    pspi->lock = spi2_lock;
+    pspi->ioctl = NULL;
+    pspi->send = spi2_sendbyte;
+    pspi->sndblock = spi2_sendblock;
+    pspi->recvblock = spi2_recvblock;
+    pspi->select =  spi2_select;
+
+    return OK;
+}
+
