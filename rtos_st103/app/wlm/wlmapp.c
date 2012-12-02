@@ -114,14 +114,24 @@ uint32_t do_wlmsend(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
         return ERROR;
     }
     printf("wlm init OK!\n");
-    for (uint8_t i = 0; i < sizeof(sendbuf); i++)
+    while (1)
     {
-        sendbuf[i] = seed++;
+        for (uint8_t i = 0; i < sizeof(sendbuf); i++)
+        {
+            sendbuf[i] = seed++;
+        }
+        taskDelay(50);
+        wlm_send(MY_WLM_ADDR1, sendbuf, sizeof(sendbuf));
+        printbuffer("I send buf", sendbuf, sizeof(sendbuf));
+        taskDelay(50);
+        uint8_t c = 0;
+        if (ttyRead(consoleFd, &c, 1) == 1)
+        {
+            if (c == 'q')
+                break;
+            c = 0;
+        }
     }
-    taskDelay(50);
-    wlm_send(MY_WLM_ADDR1, sendbuf, sizeof(sendbuf));
-    printbuffer("I send buf", sendbuf, sizeof(sendbuf));
-
     return 0;
 }
 
