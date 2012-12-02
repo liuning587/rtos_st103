@@ -48,7 +48,9 @@ soft_dog_init(void)
 	for(i = 0; i < DM_MAX_TASK_NUM - 1; i++)
 	{
 		the_soft_dog[i].next = &the_soft_dog[i + 1];
+		the_soft_dog[i].count = -1;
 	}
+	the_soft_dog[i].count = -1;
 	the_soft_dog[i].next = NULL;
 	phead = &the_soft_dog[0];
 	pfree = &the_soft_dog[0];
@@ -130,8 +132,12 @@ uint32_t
 feed_dog(uint32_t task_fd)
 {
 	OS_CPU_SR cpu_sr;
-	soft_dog_t* pnode = phead;
-
+//	soft_dog_t* pnode = phead;
+	uint32_t fd = task_fd;
+	OS_ENTER_CRITICAL();
+	the_soft_dog[fd].count = DM_MAX_CHECK_TIME;
+	OS_EXIT_CRITICAL();
+#if 0
 	while(pnode != NULL)
 	{
 		OS_ENTER_CRITICAL();
@@ -139,6 +145,7 @@ feed_dog(uint32_t task_fd)
 		pnode = pnode->next;
 		OS_EXIT_CRITICAL();
 	}
+#endif
 	return 0;
 }
 
@@ -164,11 +171,11 @@ static void daemon_loop(void)
 		while(pnode != NULL)
 		{
 			OS_ENTER_CRITICAL();
-			if((pnode->count == 0) && (strlen(pnode->name) != 0))
+			if(pnode->count == 0)
 			{
 				printf("daemon reboot system...\n");
 			}
-			else if((pnode->count != 0)&&(strlen(pnode->name) != 0))
+			else if(pnode->count > 0)
 			{
 				pnode->count --;
 			}
