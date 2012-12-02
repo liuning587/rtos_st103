@@ -419,7 +419,7 @@ spi2_select(spi_opt_t *dev, bool_e selected)
  ******************************************************************************
  */
 static uint8_t
-spi2_sendbyte(uint8_t data)
+spi2_sendbyte(spi_opt_t *dev, uint8_t data)
 {
   /*!< Wait until the transmit buffer is empty */
   while(SPI_I2S_GetFlagStatus(SPI2, SPI_I2S_FLAG_TXE) == RESET)
@@ -477,7 +477,7 @@ spi2_sendblock(spi_opt_t *dev, const uint8_t* pbuf, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
     {
-        spi2_sendbyte(pbuf[len]);
+        spi2_sendbyte(dev, pbuf[len]);
     }
 }
 

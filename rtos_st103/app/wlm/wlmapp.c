@@ -118,7 +118,7 @@ uint32_t do_wlmsend(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
     {
         sendbuf[i] = seed++;
     }
-    taskDelay(10);
+    taskDelay(50);
     wlm_send(MY_WLM_ADDR1, sendbuf, sizeof(sendbuf));
     printbuffer("I send buf", sendbuf, sizeof(sendbuf));
 

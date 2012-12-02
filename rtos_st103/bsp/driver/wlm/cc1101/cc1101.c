@@ -617,9 +617,8 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
     if ((cc1101_read_status(CC1101_RXBYTES) & BYTES_IN_RXFIFO)) //如果接的字节数不为0
     {
         rlen = cc1101_read_reg(CC1101_RXFIFO); //读出第一个字节，此字节为该帧数据长度
-        printf("recv len:%d\n", rlen);
 
-        if (len < rlen)
+        if (len < rlen - 1)
         {
             cc1101_write_cmd(CC1101_SFRX); //清空接收缓冲区
             return 0;
