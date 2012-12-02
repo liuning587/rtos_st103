@@ -168,6 +168,7 @@ const uint8_t the_pa_tab[8] = {0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0 ,0xC0}; 
 //RF_SETTINGS is a data structure which contains all relevant CC1101 registers
 typedef struct S_RF_SETTINGS
 {
+    uint8_t FIFOTHR;    //处理发送中断问题 todo:此方法不是很合理
     uint8_t FSCTRL2;      //自已加的
     uint8_t FSCTRL1;   // Frequency synthesizer control.
     uint8_t FSCTRL0;   // Frequency synthesizer control.
@@ -229,6 +230,7 @@ typedef struct S_RF_SETTINGS
 // GDO0 signal selection = ( 6)
 // GDO2 signal selection = (11) Serial Clock
 const RF_SETTINGS rfSettings = {
+    0x00,   //发送fifo61字节中端
     0x00,
     0x08, // FSCTRL1 Frequency synthesizer control.
     0x00, // FSCTRL0 Frequency synthesizer control.
@@ -636,6 +638,7 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
 
 #include <debug.h>
 
+static SEM_ID the_tx_sem = NULL;     //缓存同步信号量
 /**
  ******************************************************************************
  * @brief      发送数据包
@@ -652,26 +655,22 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
 static void
 cc1101_send_packet(uint8_t addr, const uint8_t* ptbuf, uint8_t len)
 {
-    Dprintf("bug\n");
     cc1101_write_cmd(CC1101_SIDLE);
     cc1101_write_reg(CC1101_TXFIFO, len + 1);               //写入长度
     cc1101_write_reg(CC1101_TXFIFO, addr);                  //写入接收地址
+    //todo:发送中断很奇怪，先每包直接发送64字节拉到了
     cc1101_write_burst_reg(CC1101_TXFIFO, ptbuf, len);      //写入要发送的数据
 
-    Dprintf("bug\n");
     cc1101_write_cmd(CC1101_STX);                           //进入发送模式发送数据
 
-    Dprintf("bug\n");
-    // Wait for GDO0 to be set -> sync transmitted
+    //semTake(the_tx_sem, sysClkRateGet());
+    //taskDelay(100);
+    // Wait for GDO2 to be set -> sync transmitted
     while (!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD2));//while (!GDO2);
-    Dprintf("bug\n");
-    // Wait for GDO0 to be cleared -> end of packet
+    // Wait for GDO2 to be cleared -> end of packet
     while (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD2));// while (GDO2);
-
-    Dprintf("bug\n");
     cc1101_write_cmd(CC1101_SFTX);
 
-    //todo:进入接收模式
     cc1101_write_cmd(CC1101_SRX);   //进入接收状态
 }
 
@@ -690,6 +689,7 @@ cc1101_send_packet(uint8_t addr, const uint8_t* ptbuf, uint8_t len)
 void
 cc1101_write_rf_settings(uint8_t addr)
 {
+    //cc1101_write_reg(CC1101_FIFOTHR,  rfSettings.FIFOTHR);//自已加的
     cc1101_write_reg(CC1101_FSCTRL0,  rfSettings.FSCTRL2);//自已加的
     // Write register settings
     cc1101_write_reg(CC1101_FSCTRL1,  rfSettings.FSCTRL1);
@@ -758,8 +758,12 @@ static cc1101_rbufs_t the_rbufs;
  */
 static void cc1101_exti_isr(void)
 {
-        Dprintf("bug\n");
-    if( EXTI_GetITStatus(EXTI_Line11) != RESET)
+    if ( EXTI_GetITStatus(EXTI_Line10) != RESET)
+    {
+        //semGive(the_tx_sem);
+        EXTI_ClearITPendingBit(EXTI_Line10);
+    }
+    if ( EXTI_GetITStatus(EXTI_Line11) != RESET)
     {
         the_rbufs.rbufs[the_rbufs.head].len =
                 cc1101_receive_packet(the_rbufs.rbufs[the_rbufs.head].buf,
@@ -808,13 +812,17 @@ static void cc1101_gd0_init(void)
     /* 配置GD0口外部中断PC11 */
     EXTI_InitTypeDef EXTI_InitStructure;
 
+    //GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource10);
+    //EXTI_ClearITPendingBit(EXTI_Line10);
     GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource11);
     EXTI_ClearITPendingBit(EXTI_Line11);
 
     EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
     EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
-    EXTI_InitStructure.EXTI_Line = EXTI_Line11;
     EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    //EXTI_InitStructure.EXTI_Line = EXTI_Line10;
+    //EXTI_Init(&EXTI_InitStructure);
+    EXTI_InitStructure.EXTI_Line = EXTI_Line11;
     EXTI_Init(&EXTI_InitStructure);
 
     intConnect(EXTI15_10_IRQn, cc1101_exti_isr, 0);
@@ -835,11 +843,27 @@ static void cc1101_gd0_init(void)
 status_t
 cc1101_init(uint8_t addr)
 {
-    memset(&the_rbufs, 0x00, sizeof(the_rbufs));
-    if ((the_rbufs.sem = semBCreate(0)) == NULL)
+    static bool_e is_init = FALSE;
+    if (is_init == FALSE)
     {
-        printf("cc1101_init create sem err!\n");
-        return ERROR;
+        is_init = TRUE;
+        memset(&the_rbufs, 0x00, sizeof(the_rbufs));
+        if ((the_rbufs.sem = semBCreate(0)) == NULL)
+        {
+            printf("cc1101_init create sem err!\n");
+            return ERROR;
+        }
+        if ((the_tx_sem = semBCreate(0)) == NULL)
+        {
+            semDelete(the_rbufs.sem);
+            printf("cc1101_init create sem err!\n");
+            return ERROR;
+        }
+    }
+    else
+    {
+        cc1101_write_reg(CC1101_ADDR, addr);
+        return OK;
     }
     spi2_init();    //spi初始化
     cc1101_power_reset();   //上电初始化
