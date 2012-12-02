@@ -1,10 +1,12 @@
 //cc1101驱动程序，cc1101的SPI初始化时序比较奇怪，暂时不用统一的SPI操作接口
 
 #include <stdio.h>
+#include <string.h>
 #include <types.h>
 #include <sched.h>
 #include <shell.h>
 #include <spi.h>
+#include <intlib.h>
 #include <stm32f1lib.h>
 #include "cc1101.h"
 
@@ -260,14 +262,15 @@ const RF_SETTINGS rfSettings = {
     0x81, // TEST2 Various test settings.
     0x35, // TEST1 Various test settings.
     0x09, // TEST0 Various test settings.
-    0x0B, // IOCFG2 GDO2 output pin configuration.
-    0x06, // IOCFG0D GDO0 output pin configuration.
+    0x06, // IOCFG2 GDO2 output pin configuration.
+    0x01, // IOCFG0D GDO0 output pin configuration.
     0x05, // PKTCTRL1 Packet automation control.
     0x05, // PKTCTRL0 Packet automation control.
     0x00, // ADDR Device address.   //地址
     0xff // PKTLEN Packet length.
 };
 
+static void cc1101_exti_isr(void);
 /**
  ******************************************************************************
  * @brief      cc1101 SPI 初始化
@@ -607,13 +610,6 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
     uint8_t status[2];
     uint8_t rlen;
 
-    cc1101_write_cmd(CC1101_SRX); //进入接收状态
-
-    // Wait for GDO0 to be set -> sync transmitted
-    while (!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD0)); //while (!GDO0);
-    // Wait for GDO0 to be cleared -> end of packet
-    while (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD0)); // while (GDO0);
-
     if ((cc1101_read_status(CC1101_RXBYTES) & BYTES_IN_RXFIFO)) //如果接的字节数不为0
     {
         rlen = cc1101_read_reg(CC1101_RXFIFO); //读出第一个字节，此字节为该帧数据长度
@@ -631,12 +627,14 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
         cc1101_write_cmd(CC1101_SFRX); //清空接收缓冲区
         if (status[1] & CRC_OK) //如果校验成功返回接收成功
         {
-            return rlen;
+            return rlen - 1;
         }
     }
 
     return 0;
 }
+
+#include <debug.h>
 
 /**
  ******************************************************************************
@@ -654,18 +652,27 @@ cc1101_receive_packet(uint8_t *prbuf, uint32_t len)
 static void
 cc1101_send_packet(uint8_t addr, const uint8_t* ptbuf, uint8_t len)
 {
+    Dprintf("bug\n");
+    cc1101_write_cmd(CC1101_SIDLE);
     cc1101_write_reg(CC1101_TXFIFO, len + 1);               //写入长度
     cc1101_write_reg(CC1101_TXFIFO, addr);                  //写入接收地址
     cc1101_write_burst_reg(CC1101_TXFIFO, ptbuf, len);      //写入要发送的数据
 
+    Dprintf("bug\n");
     cc1101_write_cmd(CC1101_STX);                           //进入发送模式发送数据
 
+    Dprintf("bug\n");
     // Wait for GDO0 to be set -> sync transmitted
-    while (!GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_GD0));//while (!GDO0);
+    while (!GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD2));//while (!GDO2);
+    Dprintf("bug\n");
     // Wait for GDO0 to be cleared -> end of packet
-    while (GPIO_ReadInputDataBit(GPIOC,GPIO_Pin_GD0));// while (GDO0);
+    while (GPIO_ReadInputDataBit(GPIOC, GPIO_Pin_GD2));// while (GDO2);
+
+    Dprintf("bug\n");
     cc1101_write_cmd(CC1101_SFTX);
-    //too:进入接收模式
+
+    //todo:进入接收模式
+    cc1101_write_cmd(CC1101_SRX);   //进入接收状态
 }
 
 /**
@@ -721,6 +728,98 @@ cc1101_write_rf_settings(uint8_t addr)
     cc1101_write_reg(CC1101_PKTLEN,   rfSettings.PKTLEN);
 }
 
+typedef struct
+{
+    uint8_t len;
+    uint8_t buf[CC1101_MAX_TRANSMISSION_SIZE];
+} rbuf_t;
+
+typedef struct
+{
+    uint8_t head;   //写偏移
+    uint8_t tail;   //读偏移
+    SEM_ID sem;     //缓存同步信号量
+    rbuf_t rbufs[CC1101_RBUFS];
+} cc1101_rbufs_t;
+
+static cc1101_rbufs_t the_rbufs;
+
+/**
+ ******************************************************************************
+ * @brief      cc1101中断接收服务程序
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void cc1101_exti_isr(void)
+{
+        Dprintf("bug\n");
+    if( EXTI_GetITStatus(EXTI_Line11) != RESET)
+    {
+        the_rbufs.rbufs[the_rbufs.head].len =
+                cc1101_receive_packet(the_rbufs.rbufs[the_rbufs.head].buf,
+                CC1101_MAX_TRANSMISSION_SIZE);
+        //若未接收到数据则the_rbufs.rbufs[the_rbufs.head].len == 0
+        if (the_rbufs.rbufs[the_rbufs.head].len > 0u)
+        {
+            the_rbufs.head++;
+            if (the_rbufs.head >= CC1101_RBUFS)
+            {
+                the_rbufs.head = 0;
+            }
+            //绕尾情况
+            if (the_rbufs.head == the_rbufs.tail)
+            {
+                the_rbufs.tail++;
+                if (the_rbufs.tail >= CC1101_RBUFS)
+                {
+                    the_rbufs.tail = 0;
+                }
+            }
+            else    //未绕尾则给信号量
+            {
+                semGive(the_rbufs.sem);
+            }
+        }
+        cc1101_write_cmd(CC1101_SRX);   //进入接收状态
+        EXTI_ClearITPendingBit(EXTI_Line11);
+    }
+}
+
+/**
+ ******************************************************************************
+ * @brief      cc1101中断配置初始化
+ * @param[in]  None
+ * @param[out] None
+ * @retval     None
+ *
+ * @details
+ *
+ * @note
+ ******************************************************************************
+ */
+static void cc1101_gd0_init(void)
+{
+    /* 配置GD0口外部中断PC11 */
+    EXTI_InitTypeDef EXTI_InitStructure;
+
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource11);
+    EXTI_ClearITPendingBit(EXTI_Line11);
+
+    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
+    EXTI_InitStructure.EXTI_Line = EXTI_Line11;
+    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    EXTI_Init(&EXTI_InitStructure);
+
+    intConnect(EXTI15_10_IRQn, cc1101_exti_isr, 0);
+    intEnable(EXTI15_10_IRQn);
+}
 /**
  ******************************************************************************
  * @brief      cc1101初始化
@@ -736,10 +835,18 @@ cc1101_write_rf_settings(uint8_t addr)
 status_t
 cc1101_init(uint8_t addr)
 {
+    memset(&the_rbufs, 0x00, sizeof(the_rbufs));
+    if ((the_rbufs.sem = semBCreate(0)) == NULL)
+    {
+        printf("cc1101_init create sem err!\n");
+        return ERROR;
+    }
     spi2_init();    //spi初始化
     cc1101_power_reset();   //上电初始化
     cc1101_write_rf_settings(addr); //默认配置
     cc1101_write_burst_reg(CC1101_PATABLE, the_pa_tab, 8);//发射功率设置
+    cc1101_gd0_init();  //接收中断配置
+    cc1101_write_cmd(CC1101_SRX);   //进入接收状态
     printf("cc1101 id:0x%02x; addr:0x%02x\n", cc1101_readid(), addr);
 
     return OK;
@@ -779,12 +886,40 @@ cc1101_send(uint8_t addr, const uint8_t* pbuf, int32_t len)
  ******************************************************************************
  */
 int32_t
-cc1101_recv(uint8_t addr, uint8_t* pbuf, int32_t len)
+cc1101_recv(uint8_t addr, uint8_t* pbuf, int32_t len, uint32_t time_out)
 {
     (void)addr;
-    int32_t rlen = (int32_t)cc1101_receive_packet(pbuf, len);
-    cc1101_write_cmd(CC1101_SRX);   //进入接收状态
-    return rlen;
+    int32_t len1 = 0;
+
+    if (the_rbufs.head == the_rbufs.tail)   //head == tail表示无数据可读
+    {
+        /* todo:若报文缓冲区无数据,则使等待至超时时间 */
+        printf("wait data...\n");
+        if (OK != semTake(the_rbufs.sem, time_out))
+        {
+            /* 读取超时,返回长度0 */
+            return 0;
+        }
+        if (the_rbufs.head == the_rbufs.tail)
+        {
+            printf("cc1101_recv bug.\n");   //正常情况不应该进入这里
+            return 0;
+        }
+    }
+    len1 = the_rbufs.rbufs[the_rbufs.tail].len;
+    if (len >= len1)
+    {
+        memcpy(pbuf, the_rbufs.rbufs[the_rbufs.tail].buf, len1);
+    }
+    else
+    {
+        len1 = 0;
+    }
+    the_rbufs.tail++;
+    if (the_rbufs.tail >= CC1101_RBUFS)
+    {
+        the_rbufs.tail = 0u;
+    }
+
+    return len1;
 }
-
-

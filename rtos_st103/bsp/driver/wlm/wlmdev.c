@@ -12,7 +12,6 @@
 Section: Includes
 -----------------------------------------------------------------------------*/
 #include <wlmdev.h>
-#include "cc1101/cc1101.h"
 
 /*-----------------------------------------------------------------------------
 Section: Type Definitions
@@ -99,10 +98,10 @@ wlm_send(uint8_t addr, const uint8_t* pbuf, int32_t len)
  ******************************************************************************
  */
 int32_t
-wlm_recv(uint8_t addr, uint8_t* pbuf, int32_t len)
+wlm_recv(uint8_t addr, uint8_t* pbuf, int32_t len, uint32_t time_out)
 {
 #ifdef WLM_IS_CC1101
-    return cc1101_recv(addr, pbuf, len);
+    return cc1101_recv(addr, pbuf, len, time_out);
 #endif
     return -1;
 }

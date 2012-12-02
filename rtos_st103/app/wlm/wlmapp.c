@@ -63,7 +63,6 @@ wlmapp_init(void)
 
 uint32_t do_wlmrecv(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
 {
-    uint32_t i = 0;
     uint8_t recvbuf[20];
 
     if (OK != wlm_init(MY_WLM_ADDR1))
@@ -76,15 +75,14 @@ uint32_t do_wlmrecv(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
     {
         uint32_t recvlen = 0u;
         memset(recvbuf, 0x00, sizeof(recvbuf));
-        recvlen = wlm_recv(MY_WLM_ADDR2, recvbuf, sizeof(recvbuf));
+        /* ×èÈû¶ÁÈ¡ */
+        recvlen = wlm_recv(MY_WLM_ADDR2, recvbuf, sizeof(recvbuf), 0);
         if (recvlen > 0u)
         {
             printf("I recv len:%d\n", recvlen);
             printbuffer("dat:", recvbuf, recvlen);
         }
-        if (i++ % 10 == 0)
-            printf("\n");
-        printf("*");
+
         uint8_t c = 0;
         if (ttyRead(consoleFd, &c, 1) == 1)
         {
@@ -92,7 +90,6 @@ uint32_t do_wlmrecv(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
                 break;
             c = 0;
         }
-        taskDelay(10);
     }
     printf("\n");
     return 0;
