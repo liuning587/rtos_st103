@@ -74,4 +74,88 @@ SHELL_CMD(
     "fattest \r\t\t\t\t do_fat_test \r\n"
 );
 
+uint32_t
+do_mount_ftl(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
+{
+    FATFS Fatfs;        /* File system object */
+    FIL Fil;            /* File object */
+    BYTE Buff[128];     /* File read buffer */
 
+    FRESULT rc;             /* Result code */
+    //DIR dir;                /* Directory object */
+    //FILINFO fno;            /* File information object */
+    UINT bw, br, i;
+
+    if (FR_OK != f_mount(1, &Fatfs))     /* Register volume work area (never fails) */
+    {
+        printf("mount ftl faild!\n");
+        return -1;
+    }
+    printf("mount ftl OK!\n");
+
+    printf("\nCreate a new file (hello.txt).\n");
+    rc = f_open(&Fil, "1:HELLO.TXT", FA_WRITE | FA_CREATE_ALWAYS);
+    if (rc) die(rc);
+
+    printf("\nWrite a text data. (Hello world!)\n");
+    rc = f_write(&Fil, "Hello world!\r\n", 14, &bw);
+    if (rc) die(rc);
+    printf("%u bytes written.\n", bw);
+
+    printf("\nClose the file.\n");
+    rc = f_close(&Fil);
+    if (rc) die(rc);
+
+    printf("\nOpen an existing file (hello.txt).\n");
+    rc = f_open(&Fil, "1:HELLO.TXT", FA_READ);
+    if (rc) die(rc);
+
+    printf("\nType the file content.\n");
+    for (;;) {
+        rc = f_read(&Fil, Buff, sizeof Buff, &br);  /* Read a chunk of file */
+        if (rc || !br) break;           /* Error or end of file */
+        for (i = 0; i < br; i++)        /* Type the data */
+            printf("%c", Buff[i]);
+    }
+    if (rc) die(rc);
+
+    printf("\nClose the file.\n");
+    rc = f_close(&Fil);
+    if (rc) die(rc);
+
+    f_mount(1, &Fatfs);     /* unmount */
+
+    return 0;
+}
+SHELL_CMD(
+    mountftl, CFG_MAXARGS,        do_mount_ftl,
+    "mountftl \r\t\t\t\t mount ftl \r\n"
+);
+
+
+uint32_t
+do_mkfs_ftl(cmd_tbl_t * cmdtp, uint32_t argc, const uint8_t *argv[])
+{
+    FATFS Fatfs;        /* File system object */
+
+    if (FR_OK != f_mount(1, &Fatfs))     /* Register volume work area (never fails) */
+    {
+        printf("mount ftl faild!\n");
+        return -1;
+    }
+    if (FR_OK != f_mkfs(1, 0, 0))
+    {
+        printf("ftl mkfs err.\n");
+    }
+    else
+    {
+        printf("ftl mkfs succeed.\n");
+    }
+    f_mount(1, &Fatfs);     /* unmount */
+
+    return 0;
+}
+SHELL_CMD(
+    mkfsftl, CFG_MAXARGS,        do_mkfs_ftl,
+    "mkfsftl \r\t\t\t\t mkfs ftl \r\n"
+);

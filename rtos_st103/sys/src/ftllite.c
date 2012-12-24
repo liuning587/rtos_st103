@@ -219,7 +219,7 @@ typedef struct tTLrec {
  ----------------------------------------------------------------------------*/
 static uint8_t FORMAT_PATTERN[15] = {0x13, 3, 'C', 'I', 'S',
                  0x46, 57, 0, 'F', 'T', 'L', '1', '0', '0', 0};
-static SEM_ID semFtlRW;
+static SEM_ID semFtlRW = NULL;
 static char_t bufFtlRw[SECTOR_SIZE];
 static FLBuffer s_volBuffers;
 static Flare s_flare;
@@ -1972,6 +1972,10 @@ status_t ftlCmp(uint32_t virtualAddr, uint8_t * buf, int32_t len, bool_e* same)
 ******************************************************************************/
 status_t ftlInit()
 {
+    if (semFtlRW != NULL)
+    {
+        return OK;
+    }
     semFtlRW = semBCreate(1);
     FLStatus status;
 
@@ -2042,7 +2046,12 @@ ftlget_maxEraseCount(void)
     return (vol.maxEraseCount);
 }
 
-
+unsigned long
+ftl_get_sector_count(void)
+{
+    Flare vol = &s_flare;
+    return (vol.virtualSectors);
+}
 
 /*----------------------------End of ftllite.c-------------------------------*/
 

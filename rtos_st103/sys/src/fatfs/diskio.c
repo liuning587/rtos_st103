@@ -41,16 +41,18 @@ DSTATUS disk_initialize (
 {
 	switch (drv) {
 	case FTL :
-		return RES_ERROR;
+	    if (ftlInit() == OK)
+	    {
+	        return RES_OK;
+	    }
+	    else
+	    {
+	        return RES_ERROR;
+	    }
 
 	case MMC :
 	    return sd_initialize();
-#if 0
-        if (SD_Init() == SD_RESPONSE_NO_ERROR)
-            return RES_OK;
-        else
-            return RES_ERROR;
-#endif
+
 	}
 	return STA_NOINIT;
 }
@@ -65,12 +67,9 @@ DSTATUS disk_status (
 	BYTE drv		/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat = RES_OK;
-
 	switch (drv) {
 	case FTL :
-
-		return stat;
+		return RES_OK;
 
 	case MMC :
 		return sd_status();
@@ -93,18 +92,17 @@ DRESULT disk_read (
 {
 	switch (drv) {
 	case FTL :
-
-		return RES_ERROR;
+	    if (ftlRead(sector * 512, buff, count * 512) == OK)
+	    {
+	        return RES_OK;
+	    }
+	    else
+	    {
+	        return RES_ERROR;
+	    }
 
 	case MMC :
 	    return sd_read(buff, sector, count);
-#if 0
-	    //printf("read sector:%d count:%d\n", sector, count);
-	    if (SD_ReadMultiBlocks(buff, sector * 512, 512, count) == SD_RESPONSE_NO_ERROR)
-	        return RES_OK;
-	    else
-	       return RES_ERROR;
-#endif
 	}
 	return RES_PARERR;
 }
@@ -125,17 +123,17 @@ DRESULT disk_write (
 {
 	switch (drv) {
 	case FTL :
-		return RES_ERROR;
+        if (ftlWrite(sector * 512, (uint8_t* )buff, count * 512) == OK)
+        {
+            return RES_OK;
+        }
+        else
+        {
+            return RES_ERROR;
+        }
 
 	case MMC :
         return sd_write(buff, sector, count);
-#if 0
-        //printf("write sector:%d count:%d\n", sector, count);
-        if (SD_WriteMultiBlocks((uint8_t*)buff, sector * 512, 512, count) == SD_RESPONSE_NO_ERROR)
-            return RES_OK;
-        else
-           return RES_ERROR;
-#endif
 	}
 	return RES_PARERR;
 }
@@ -155,21 +153,28 @@ DRESULT disk_ioctl (
 {
 	switch (drv) {
 	case FTL :
-		// pre-process here
+	    switch (ctrl)
+	    {
+	        case CTRL_SYNC :        /* Make sure that no pending write process */
+	            return RES_OK;
 
-		//result = FTL_disk_ioctl(ctrl, buff);
+	        case GET_SECTOR_COUNT : /* Get number of sectors on the disk (DWORD) */
+                *(DWORD*)buff = (DWORD)ftl_get_sector_count();
+                return RES_OK;
 
-		// post-process here
+	        case GET_BLOCK_SIZE :   /* Get erase block size in unit of sector (DWORD) */
+	            *(DWORD*)buff = (DWORD)512u;
+	            return RES_OK;
 
+	        default:
+	            return RES_PARERR;
+	    }
 		return RES_ERROR;
 
 	case MMC :
         return sd_ioctl(ctrl, buff);
-		// pre-process here
-	    //return RES_OK;
-		// post-process here
-
 	}
+
 	return RES_PARERR;
 }
 #endif

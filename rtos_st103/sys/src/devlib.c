@@ -107,7 +107,7 @@ find_dev_by_name(const char_t* pname)
     device_t* pnode = phead;
     while (pnode != NULL)
     {
-        if (strncpy(pnode->name, pname, sizeof(pnode->name)) == 0)
+        if (strncmp(pnode->name, pname, sizeof(pnode->name)) == 0)
         {
             return pnode;
         }
