@@ -42,6 +42,7 @@ typedef enum
     IO_WLM_GDO0,
     IO_WLM_RXEN,    /* L:发射状态（开功放）H:接收状态/(关功放) */
     IO_MAX_COUNTS,
+    IO_ZCP_DET,     /*过零检测*/
 } gpio_out_e;
 
 #define IO_NO_SUPPORT                 (-1) /* 无效IO               */

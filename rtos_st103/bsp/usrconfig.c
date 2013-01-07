@@ -7,6 +7,8 @@
 #include <exc.h>
 #include <daemon.h>
 
+#include <lcd.h>
+
 extern void sysHwInit0(void);
 extern void sysHwInit2(void);
 extern void sysHwInit(void);

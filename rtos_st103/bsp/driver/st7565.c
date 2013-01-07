@@ -481,10 +481,11 @@ lcd_dispbmp(int32_t line,
 /**
  *******************************************************************************
  * @brief      在LCD上显示字符或则汉字.
- * @param[in]  line    行序号，0~3,
- * @param[in]  x       横坐标
- * @param[in]  *data   需要显示的图片数据
- * @param[in]  iny     0 字符不需要取反   1字符需要取反
+ * @param[in]  font        字体类型
+ * @param[in]  line        行序号，0~3,
+ * @param[in]  x           横坐标
+ * @param[in]  *pcontent   需要显示的图片数据
+ * @param[in]  iny         0，字符不需要取反；  1，字符需要取反
  * @param[out] None
  * @retval     None
  *

@@ -34,6 +34,7 @@ static const io_map_t the_inout_iomap[] =
     {IO_WLM_GDO2, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_10},
     {IO_WLM_GDO0, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_11},
     {IO_WLM_RXEN, IO_OUTPUT1, GPIOC_BASE, GPIO_Pin_12},
+    {IO_ZCP_DET,  IO_INPUT,   GPIOC_BASE, GPIO_Pin_7}
 };
 static status_t
 bsp_gpio_cfg(int32_t io_no, int32_t value)

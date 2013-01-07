@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <devlib.h>
+#include <ucos_ii.h>
 
 #ifdef Dprintf
 #undef Dprintf
@@ -38,11 +39,14 @@ static device_t* the_opend_devs[MAX_OPEN_NUM];
 static int32_t
 find_free_fd(device_t* pnode)
 {
+	OS_CPU_SR cpu_sr;
     for (int32_t i = 0; i < MAX_OPEN_NUM; i++)
     {
         if (the_opend_devs[i] == NULL)
         {
+        	OS_ENTER_CRITICAL();
             the_opend_devs[i] = pnode;
+            OS_EXIT_CRITICAL();
             Dprintf("find free fd node\n");
             return i + 1;   /* 注意返回句柄加1防止句柄 */
         }
@@ -67,12 +71,15 @@ find_free_fd(device_t* pnode)
 status_t
 devlib_init(void)
 {
+	OS_CPU_SR cpu_sr;
     uint32_t i;
     static bool_e is_initd = FALSE;
 
     if (is_initd == TRUE)
     	return OK;
     is_initd = TRUE;
+
+    OS_ENTER_CRITICAL();
     memset(the_opend_devs, 0x00, sizeof(the_opend_devs));
     memset(the_devs, 0x00, sizeof(the_devs));
     for (i = 0; i < MAX_DEVICE_NUM - 1; i++)
@@ -83,6 +90,7 @@ devlib_init(void)
 
     pfree = &the_devs[0];
     phead = &the_devs[0];
+    OS_EXIT_CRITICAL();
 
     Dprintf("init OK\n");
 
@@ -104,6 +112,7 @@ devlib_init(void)
 static device_t*
 find_dev_by_name(const char_t* pname)
 {
+	OS_CPU_SR cpu_sr;
     device_t* pnode = phead;
     while (pnode != NULL)
     {
@@ -111,7 +120,9 @@ find_dev_by_name(const char_t* pname)
         {
             return pnode;
         }
+        OS_ENTER_CRITICAL();
         pnode = pnode->next;
+        OS_EXIT_CRITICAL();
     }
     return NULL;
 }
@@ -132,6 +143,7 @@ find_dev_by_name(const char_t* pname)
 status_t
 dev_create(const char_t* pname, const fileopt_t* pfileopt)
 {
+	OS_CPU_SR cpu_sr;
     device_t* new = NULL;
 
     if ((pname == NULL) || (pfileopt == NULL) || (pfree == NULL))
@@ -144,8 +156,10 @@ dev_create(const char_t* pname, const fileopt_t* pfileopt)
     {
         return ERROR;
     }
+    OS_ENTER_CRITICAL();
     new = pfree;
     pfree = new->next;
+    OS_EXIT_CRITICAL();
 
     strncpy(new->name, pname, sizeof(new->name));
     memcpy(&new->fileopt, pfileopt, sizeof(fileopt_t));
@@ -154,8 +168,10 @@ dev_create(const char_t* pname, const fileopt_t* pfileopt)
         if (new->fileopt.init(&new->fileopt) != OK)
         {
             /* 若执行初始化方法失败,则释放节点 */
+        	OS_ENTER_CRITICAL();
             pfree = new;
             new = NULL;
+            OS_EXIT_CRITICAL();
             return ERROR;
         }
     }
@@ -178,6 +194,7 @@ dev_create(const char_t* pname, const fileopt_t* pfileopt)
 status_t
 dev_release(const char_t* pname)
 {
+	OS_CPU_SR cpu_sr;
     device_t* pnode = phead;
 
     if ((pname == NULL) || (phead == NULL))
@@ -198,30 +215,38 @@ dev_release(const char_t* pname)
     /* 首先判断第一个节点 */
     if (strncmp(pnode->name, pname, sizeof(pnode->name)) == 0)
     {
+    	OS_ENTER_CRITICAL();
         phead = phead->next;
         pnode->next = pfree->next;
         pfree->next = pnode;
+        OS_EXIT_CRITICAL();
         if (pnode->fileopt.release != NULL)
         	return pnode->fileopt.release(&pnode->fileopt);
         return OK;
     }
 
     device_t* pnode_last = pnode;
+    OS_ENTER_CRITICAL();
     pnode = pnode->next;
+    OS_EXIT_CRITICAL();
     while (pnode != NULL)
     {
         if (strncmp(pnode->name, pname, sizeof(pnode->name)) == 0)
         {
             /* 找到对应节点 */
+        	OS_ENTER_CRITICAL();
             pnode_last->next = pnode->next;
             pnode->next = pfree->next;
             pfree->next = pnode;
+            OS_EXIT_CRITICAL();
             if (pnode->fileopt.release != NULL)
             	return pnode->fileopt.release(&pnode->fileopt);
             return OK;
         }
+        OS_ENTER_CRITICAL();
         pnode_last = pnode;
         pnode = pnode->next;
+        OS_EXIT_CRITICAL();
     }
     Dprintf("can not find name:%s", pname);
 
@@ -243,6 +268,7 @@ dev_release(const char_t* pname)
 int32_t
 dev_open(const char_t* pname, int32_t flags)
 {
+	OS_CPU_SR cpu_sr;
     device_t* pnode = phead;
 
     if (pname == NULL)
@@ -263,7 +289,9 @@ dev_open(const char_t* pname, int32_t flags)
             }
             return fd;
         }
+        OS_ENTER_CRITICAL();
         pnode = pnode->next;    /* next node */
+        OS_EXIT_CRITICAL();
     }
     return -1;  /* can not find pname */
 }
@@ -414,6 +442,7 @@ dev_write(int32_t fd, const void* buf, int32_t count)
 int32_t
 dev_ioctl(int32_t fd, uint32_t cmd, void *args)
 {
+	OS_CPU_SR cpu_sr;
     int32_t realfd = fd - 1;    /* 这里取得真实的fd */
     if (FALSE == is_fd_valid(realfd))
     {
@@ -446,6 +475,7 @@ dev_ioctl(int32_t fd, uint32_t cmd, void *args)
 int32_t
 dev_close(int32_t fd)
 {
+	OS_CPU_SR cpu_sr;
     int32_t realfd = fd - 1;    /* 这里取得真实的fd */
 
     if (FALSE == is_fd_valid(realfd))

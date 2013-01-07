@@ -61,7 +61,7 @@ zk_data_of16_16(uint16_t hz, uint8_t* platticedata);
  * @brief      获取字模的对应数据.
  * @param[in]  font  FONT_SIZE_16  16*16 或则16*8
  *                   FONT_SIZE_12  12*12 或则12*8
- * @param[in]
+ * @param[in]  *pstr  传入的字符串指针
  *
  * @param[out] None
  * @retval     None
@@ -80,7 +80,7 @@ zk_generate_data(uint8_t font,
     int32_t src = 0;
     int32_t index = 0;
     uint16_t wd;
-    uint8_t data[32];
+    uint8_t data[32];//保存对应字符的字模
 
     while (src < len)
     {
@@ -96,7 +96,7 @@ zk_generate_data(uint8_t font,
             }
             else
             {
-                wd = (uint16_t)((uint16_t)pstr[src] << 8) | pstr[src + 1];
+                wd = (uint16_t)((uint16_t)pstr[src] << 8) | pstr[src + 1];//汉字
                 zk_data_of16_16(wd, data);
                 zk_inversbit(data, 16);
                 memcpy(plattice_data + index, data, 32u);

@@ -370,7 +370,7 @@ extern  status_t semTake
 
     OSSemPend (semId, timeout, &status_err);
     if (OS_NO_ERR == status_err) return OK;
-    //printf("semTake error %d\r\n", status_err);
+//    printf("semTake error %d\r\n", status_err);
     return ERROR;
 }
 /*

@@ -16,6 +16,9 @@
 #include <uart.h>
 #include <ftl.h>
 #include <bsp_gpio.h>
+#include <bsp_adc.h>
+#include <bsp_key.h>
+#include <zero_check.h>
 
 /*UART口的定义*/
 typedef struct

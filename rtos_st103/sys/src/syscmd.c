@@ -20,6 +20,7 @@ Section: Includes
 #include <time.h>
 #include <shell.h>
 #include <sys_gpio.h>
+//#include <sys_adc.h>
 
 /*-----------------------------------------------------------------------------
  Section: Constant Definitions
@@ -436,4 +437,9 @@ SHELL_CMD(
     fshow,    CFG_MAXARGS,        do_fshow,
     "fshow \r\t\t\t\t show ftl info\n"
 );
+
+
+
+
+
 /*----------------------------End of syscmd.c--------------------------------*/

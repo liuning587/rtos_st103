@@ -8,8 +8,18 @@
 #include <types.h>
 #include <sys_gpio.h>
 #include <daemon.h>
+#include <zk.h>
+#include <lcd.h>
 
 static uint32_t led_fd = -1;
+extern MSG_Q_ID lcd_id;
+static lcd_msg_t lcd_msg= {
+		.font = FONT_SIZE_16,
+		.line = 1,
+		.x = 0,
+		.pcontent = (uint8_t*)"测试任务通讯  ",
+		.iny = 0u,
+};
 static void leds_loop(void)
 {
 	while (1)
@@ -34,6 +44,15 @@ static void leds_loop(void)
         taskDelay(50);
 		//sys_gpio_write(IO_LCD_AK, E_LED_ON);
 		//taskDelay(50);
+#if 0
+        printf("zcp_det = %d,", sys_gpio_read(IO_ZCP_DET));
+        taskDelay(50);
+#endif
+        if(msgQSend(lcd_id, &lcd_msg)!= 0)
+        {
+        	printf("msgQSend error\n");
+        	return ;
+        }
         feed_dog(led_fd);
 	}
 }
@@ -45,7 +64,6 @@ leds_init(void)
 
     taskSpawn("leds", 7, shellstack,
             128, (OSFUNCPTR)leds_loop, 0);
-
     led_fd = regist_to_daemon("leds");
 
 }
